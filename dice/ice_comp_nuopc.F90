@@ -41,6 +41,12 @@ module cdeps_dice_comp
   use dice_datamode_ssmi_mod , only : dice_datamode_ssmi_restart_read
   use dice_datamode_ssmi_mod , only : dice_datamode_ssmi_restart_write
 
+  use dice_datamode_cice_mod , only : dice_datamode_cice_advertise
+  use dice_datamode_cice_mod , only : dice_datamode_cice_init_pointers
+  use dice_datamode_cice_mod , only : dice_datamode_cice_advance
+  use dice_datamode_cice_mod , only : dice_datamode_cice_restart_read
+  use dice_datamode_cice_mod , only : dice_datamode_cice_restart_write
+
   implicit none
   private ! except
 
@@ -171,6 +177,7 @@ contains
     integer           :: nu                 ! unit number
     integer           :: ierr               ! error code
     logical           :: exists             ! check for file existence
+    logical           :: isPresent, isSet
     character(len=*),parameter  :: subname=trim(modName)//':(InitializeAdvertise) '
     character(*)    ,parameter :: F00 = "('(" // trim(modName) // ") ',8a)"
     character(*)    ,parameter :: F01 = "('(" // trim(modName) // ") ',a,2x,i8)"
@@ -234,21 +241,31 @@ contains
     call shr_mpi_bcast(flux_Qacc0     , mpicom, 'flux_Qacc0')
 
     ! Validate datamode
-    if ( trim(datamode) == 'ssmi' .or. trim(datamode) == 'ssmi_iaf') then
+    if ( trim(datamode) == 'ssmi' .or. &
+         trim(datamode) == 'ssmi_iaf' .or. &
+         trim(datamode) == 'cice') then
        if (my_task == master_task) write(logunit,*) ' dice datamode = ',trim(datamode)
     else
        call shr_sys_abort(' ERROR illegal dice datamode = '//trim(datamode))
     endif
 
     ! Advertise import and export fields
-    call NUOPC_CompAttributeGet(gcomp, name='flds_i2o_per_cat', value=cvalue, rc=rc)
+    call NUOPC_CompAttributeGet(gcomp, name='flds_i2o_per_cat', value=cvalue, isPresent=isPresent, isSet=isSet, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    read(cvalue,*) flds_i2o_per_cat  ! module variable
+    if (isPresent .and. isSet) then
+       read(cvalue,*) flds_i2o_per_cat  ! module variable
+    else
+       flds_i2o_per_cat = .false.
+    endif
 
     select case (trim(datamode))
     case('ssmi', 'ssmi_iaf')
        call dice_datamode_ssmi_advertise(importState, exportState, fldsimport, fldsexport, &
             flds_scalar_name, flds_i2o_per_cat, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    case('cice')
+       call dice_datamode_cice_advertise(importState, exportState, fldsimport, fldsexport, &
+            flds_scalar_name, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end select
 
@@ -475,6 +492,9 @@ contains
        case('ssmi', 'ssmi_iaf')
           call dice_datamode_ssmi_init_pointers(importState, exportState, sdat, flds_i2o_per_cat, rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
+       case('cice')
+          call dice_datamode_cice_init_pointers(importState, exportState, sdat, rc)
+          if (chkerr(rc,__LINE__,u_FILE_u)) return
        end select
 
        ! read restart if needed
@@ -482,6 +502,8 @@ contains
           select case (trim(datamode))
           case('ssmi', 'ssmi_iaf')
              call dice_datamode_ssmi_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
+          !case('cice')
+          !   call dice_datamode_cice_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
           end select
        end if
 
@@ -522,6 +544,9 @@ contains
        call dice_datamode_ssmi_advance(exportState, importState, cosarg, flds_i2o_per_cat, &
             flux_swpf, flux_Qmin, flux_Qacc, flux_Qacc0, dt, logunit, restart_read, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    case ('cice')
+       call dice_datamode_cice_advance(exportState, importState, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end select
 
     ! Write restarts if needed
@@ -531,6 +556,10 @@ contains
           call dice_datamode_ssmi_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       !case('cice')
+       !   call dice_datamode_cice_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
+       !        logunit, my_task, sdat)
+       !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
        end select
     end if
 
