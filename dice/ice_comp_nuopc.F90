@@ -10,9 +10,9 @@ module cdeps_dice_comp
 
   use ESMF                 , only : ESMF_Mesh, ESMF_GridComp, ESMF_State, ESMF_Clock
   use ESMF                 , only : ESMF_SUCCESS, ESMF_Time, ESMF_LogWrite, ESMF_LOGMSG_INFO
-  use ESMF                 , only : ESMF_TraceRegionEnter, ESMF_TraceRegionExit
+  use ESMF                 , only : ESMF_TraceRegionEnter, ESMF_TraceRegionExit, ESMF_MAXSTR
   use ESMF                 , only : ESMF_Alarm, ESMF_TimeInterval, ESMF_TimeIntervalGet
-  use ESMF                 , only : ESMF_AlarmIsRinging, ESMF_METHOD_INITIALIZE
+  use ESMF                 , only : ESMF_AlarmIsRinging, ESMF_METHOD_INITIALIZE, ESMF_ClockPrint
   use ESMF                 , only : ESMF_ClockGet, ESMF_TimeGet, ESMF_MethodRemove, ESMF_MethodAdd
   use ESMF                 , only : ESMF_GridCompSetEntryPoint, operator(+), ESMF_AlarmRingerOff
   use ESMF                 , only : ESMF_ClockGetAlarm, ESMF_StateGet, ESMF_Field, ESMF_FieldGet
@@ -400,6 +400,7 @@ contains
     integer                 :: mon           ! month
     integer                 :: day           ! day in month
     logical                 :: restart_write
+    character(240)          :: msgString
     character(len=*),parameter :: subname=trim(modName)//':(ModelAdvance) '
     !-------------------------------------------------------------------------------
 
@@ -443,6 +444,12 @@ contains
        restart_write = .false.
     endif
 
+    ! Print out current time
+    call ESMF_ClockPrint(clock, options="currTime", &
+      preString="------>Advancing ICE from: ", unit=msgString, rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    call ESMF_LogWrite(subname//trim(msgString), ESMF_LOGMSG_INFO)
+
     ! Run dice
     call dice_comp_run(importState, exportState, next_ymd, next_tod, cosarg, restart_write, rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -481,18 +488,19 @@ contains
     !--------------------
 
     if (first_time) then
-
-       ! Initialize dfields with export state data that has corresponding stream field
-       call dshr_dfield_add(dfields, sdat, state_fld='Si_ifrac', strm_fld='Si_ifrac', &
-            state=exportState, logunit=logunit, masterproc=masterproc, rc=rc)
-       if (chkerr(rc,__LINE__,u_FILE_u)) return
-
        ! Initialize datamode module ponters
        select case (trim(datamode))
        case('ssmi', 'ssmi_iaf')
+          ! Initialize dfields with export state data that has corresponding stream field
+          call dshr_dfield_add(dfields, sdat, state_fld='Si_ifrac', strm_fld='Si_ifrac', &
+               state=exportState, logunit=logunit, masterproc=masterproc, rc=rc)
+          if (chkerr(rc,__LINE__,u_FILE_u)) return
           call dice_datamode_ssmi_init_pointers(importState, exportState, sdat, flds_i2o_per_cat, rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
        case('cice')
+          ! Initialize dfields
+          call dice_init_dfields(importState, exportState, rc=rc)
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
           call dice_datamode_cice_init_pointers(importState, exportState, sdat, rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
        end select
@@ -502,8 +510,8 @@ contains
           select case (trim(datamode))
           case('ssmi', 'ssmi_iaf')
              call dice_datamode_ssmi_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
-          !case('cice')
-          !   call dice_datamode_cice_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
+          case('cice')
+             call dice_datamode_cice_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
           end select
        end if
 
@@ -519,6 +527,7 @@ contains
 
     call ESMF_TraceRegionEnter('dice_strdata_advance')
     call shr_strdata_advance(sdat, target_ymd, target_tod, logunit, 'dice', rc=rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call ESMF_TraceRegionExit('dice_strdata_advance')
 
     !--------------------
@@ -556,10 +565,10 @@ contains
           call dice_datamode_ssmi_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
-       !case('cice')
-       !   call dice_datamode_cice_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
-       !        logunit, my_task, sdat)
-       !   if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       case('cice')
+          call dice_datamode_cice_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
+               logunit, my_task, sdat)
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        end select
     end if
 
@@ -571,6 +580,46 @@ contains
 
     call ESMF_TraceRegionExit('dice_datamode')
     call ESMF_TraceRegionExit('DICE_RUN')
+
+  contains
+
+    subroutine dice_init_dfields(importState, exportState, rc)
+      ! -----------------------------
+      ! Initialize dfields arrays
+      ! -----------------------------
+
+      ! input/output variables
+      type(ESMF_State)       , intent(inout) :: importState
+      type(ESMF_State)       , intent(inout) :: exportState
+      integer                , intent(out)   :: rc
+
+      ! local variables
+      integer                         :: n
+      integer                         :: fieldcount
+      type(ESMF_Field)                :: lfield
+      character(ESMF_MAXSTR) ,pointer :: lfieldnamelist(:)
+      character(*), parameter   :: subName = "(dice_init_dfields) "
+      !-------------------------------------------------------------------------------
+
+      rc = ESMF_SUCCESS
+
+      ! Initialize dfields data type (to map streams to export state fields)
+      ! Create dfields linked list - used for copying stream fields to export state fields
+      call ESMF_StateGet(exportState, itemCount=fieldCount, rc=rc)
+      if (chkerr(rc,__LINE__,u_FILE_u)) return
+      allocate(lfieldnamelist(fieldCount))
+      call ESMF_StateGet(exportState, itemNameList=lfieldnamelist, rc=rc)
+      if (chkerr(rc,__LINE__,u_FILE_u)) return
+      do n = 1, fieldCount
+         call ESMF_StateGet(exportState, itemName=trim(lfieldNameList(n)), field=lfield, rc=rc)
+         if (chkerr(rc,__LINE__,u_FILE_u)) return
+         if (trim(lfieldnamelist(n)) /= flds_scalar_name) then
+            call dshr_dfield_add( dfields, sdat, trim(lfieldnamelist(n)), trim(lfieldnamelist(n)), exportState, &
+                 logunit, masterproc, rc)
+            if (chkerr(rc,__LINE__,u_FILE_u)) return
+         end if
+      end do
+    end subroutine dice_init_dfields
 
   end subroutine dice_comp_run
 
