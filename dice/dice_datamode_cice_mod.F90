@@ -279,8 +279,8 @@ contains
     type(shr_strdata_type)      , intent(inout) :: sdat
     !-------------------------------------------------------------------------------
 
-    call dshr_restart_write(rpfile, case_name, 'dice', inst_suffix, ymd, tod, &
-         logunit, my_task, sdat, fld=water, fldname='water')
+    !call dshr_restart_write(rpfile, case_name, 'dice', inst_suffix, ymd, tod, &
+    !     logunit, my_task, sdat, fld=water, fldname='water')
 
   end subroutine dice_datamode_cice_restart_write
 
@@ -300,8 +300,8 @@ contains
     allocate(water(sdat%model_lsize))
 
     ! read restart
-    call dshr_restart_read(rest_filem, rpfile, inst_suffix, nullstr, logunit, my_task, mpicom, sdat, &
-         fld=water, fldname='water')
+    !call dshr_restart_read(rest_filem, rpfile, inst_suffix, nullstr, logunit, my_task, mpicom, sdat, &
+    !     fld=water, fldname='water')
 
   end subroutine dice_datamode_cice_restart_read
 
