@@ -5,6 +5,7 @@ module dice_datamode_cice_mod
   use ESMF                 , only : ESMF_ArrayCreate, ESMF_ArrayDestroy
   use NUOPC                , only : NUOPC_Advertise
   use shr_kind_mod         , only : r8=>shr_kind_r8
+  use shr_const_mod        , only : shr_const_spval, shr_const_tkfrz, shr_const_latvap
   use dshr_strdata_mod     , only : shr_strdata_get_stream_pointer, shr_strdata_type
   use dshr_methods_mod     , only : dshr_state_getfldptr, chkerr
   use dshr_mod             , only : dshr_restart_read, dshr_restart_write
@@ -54,9 +55,14 @@ module dice_datamode_cice_mod
   real(r8), pointer :: Fioi_salt(:)      => null()
 
   ! other parameters
-  character(*) , parameter :: nullstr = 'null'
-  character(*) , parameter :: rpfile  = 'rpointer.ice'
-  character(*) , parameter :: u_FILE_u = &
+  real(r8), parameter :: spval    = shr_const_spval  ! flags invalid data
+  real(r8), parameter :: tFrz     = shr_const_tkfrz  ! temp of freezing
+  real(r8), parameter :: lhvap    = shr_const_latvap ! latent heat of evaporation ~ J/kg
+  real(r8), parameter :: waterMax = 1000.0_r8        ! wrt iFrac comp & frazil ice (kg/m^2)
+
+  character(*), parameter :: nullstr = 'null'
+  character(*), parameter :: rpfile  = 'rpointer.ice'
+  character(*), parameter :: u_FILE_u = &
        __FILE__
 
 !===============================================================================
@@ -246,21 +252,55 @@ contains
 
     lsize = size(Si_ifrac)
     do n = 1, lsize
-      !--- fix erroneous iFrac ---
-      Si_ifrac(n) = min(1.0_r8,max(0.0_r8,Si_ifrac(n)))
+      if (imask(n) > 0 .and. Si_ifrac(n) > 0.0_r8) then
+         !--- fix erroneous iFrac ---
+         Si_ifrac(n) = min(1.0_r8,max(0.0_r8,Si_ifrac(n)))
+         Si_ifrac(n) = max(0.01_r8, Si_ifrac(n)) ! min iFrac
 
-      ! multiply ice and snow thickness (m) with ice area to 
-      ! calculate ice and snow volume (m^3)
-      Si_vice(n) = Si_vice(n)*Si_ifrac(n)
-      Si_vsno(n) = Si_vsno(n)*Si_ifrac(n)
+         ! apply unit conversion
+         Si_t(n) = Si_t(n) + tFrz ! degC -> K
+         Faii_evap(n) = Faii_evap(n) * 0.01_r8 * waterMax / 86400_r8 ! cm/day -> kg m-2 s-1
+         Fioi_meltw(n) = Fioi_meltw(n) * 0.01_r8 * waterMax / 86400_r8 ! cm/day -> kg m-2 s-1
 
-      ! calculate SW penetration thru the ice in bands
-      ! simply distribute with simple weights
-      ! inherited from how GFDL was driving MOM6 with the CORE2 forcings
-      Fioi_swpen_vdr(n) = Fioi_swpen(n)*0.285_r8
-      Fioi_swpen_vdf(n) = Fioi_swpen(n)*0.285_r8
-      Fioi_swpen_idr(n) = Fioi_swpen(n)*0.215_r8
-      Fioi_swpen_idf(n) = Fioi_swpen(n)*0.215_r8
+         !--- cpl multiplies Fioi_melth & Fioi_meltw by iFrac ---
+         !--- divide by iFrac here => fixed quantity flux (not per area) ---
+         Fioi_melth(n) = Fioi_melth(n)/Si_ifrac(n)
+         Fioi_meltw(n) = Fioi_meltw(n)/Si_ifrac(n)
+
+         ! calculate SW penetration thru the ice in bands
+         ! simply distribute with simple weights
+         ! inherited from how GFDL was driving MOM6 with the CORE2 forcings
+         Fioi_swpen_vdr(n) = Fioi_swpen(n)*0.285_r8
+         Fioi_swpen_vdf(n) = Fioi_swpen(n)*0.285_r8
+         Fioi_swpen_idr(n) = Fioi_swpen(n)*0.215_r8
+         Fioi_swpen_idf(n) = Fioi_swpen(n)*0.215_r8
+
+         ! multiply ice and snow thickness (m) with ice area to
+         ! calculate ice and snow volume (m^3)
+         Si_vice(n) = Si_vice(n)*Si_ifrac(n)
+         Si_vsno(n) = Si_vsno(n)*Si_ifrac(n)
+      else
+         Si_ifrac(n) = 0.0_r8
+         Si_t(n) = 0.0_r8
+         Faii_evap(n) = 0.0_r8
+         Faii_lat(n) = 0.0_r8
+         Faii_lwup(n) = 0.0_r8
+         Faii_sen(n) = 0.0_r8
+         Faii_taux(n) = 0.0_r8
+         Faii_tauy(n) = 0.0_r8
+         Fioi_melth(n) = 0.0_r8
+         Fioi_meltw(n) = 0.0_r8
+         Fioi_salt(n) = 0.0_r8
+         Fioi_taux(n) = 0.0_r8
+         Fioi_tauy(n) = 0.0_r8
+         Fioi_swpen(n) = 0.0_r8
+         Si_avsdr(n) = 0.0_r8
+         Si_avsdf(n) = 0.0_r8
+         Si_anidr(n) = 0.0_r8
+         Si_anidf(n) = 0.0_r8
+         Si_vice(n) = 0.0_r8
+         Si_vsno(n) = 0.0_r8
+      end if
     end do
 
   end subroutine dice_datamode_cice_advance
