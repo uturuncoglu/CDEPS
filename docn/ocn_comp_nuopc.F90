@@ -53,6 +53,11 @@ module cdeps_docn_comp
   use docn_datamode_aquaplanet_mod , only : docn_datamode_aquaplanet_advertise
   use docn_datamode_aquaplanet_mod , only : docn_datamode_aquaplanet_init_pointers
   use docn_datamode_aquaplanet_mod , only : docn_datamode_aquaplanet_advance
+  use docn_datamode_hist_mod       , only : docn_datamode_hist_advertise
+  use docn_datamode_hist_mod       , only : docn_datamode_hist_init_pointers
+  use docn_datamode_hist_mod       , only : docn_datamode_hist_advance
+  use docn_datamode_hist_mod       , only : docn_datamode_hist_restart_read
+  use docn_datamode_hist_mod       , only : docn_datamode_hist_restart_write
 
   implicit none
   private ! except
@@ -252,6 +257,7 @@ contains
 
     ! Validate datamode
     if ( trim(datamode) == 'sstdata'            .or. & ! read stream, no import data
+         trim(datamode) == 'hist'               .or. & ! read stream, no import data
          trim(datamode) == 'iaf'                .or. & ! read stream, needs import data?
          trim(datamode) == 'sst_aquap_file'     .or. & ! read stream, no import data
          trim(datamode) == 'som'                .or. & ! read stream, needs import data
@@ -273,6 +279,9 @@ contains
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else if (trim(datamode) == 'sstdata' .or. trim(datamode) == 'sst_aquap_file') then
        call docn_datamode_copyall_advertise(exportState, fldsExport, flds_scalar_name, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    else if (trim(datamode) == 'hist') then
+       call docn_datamode_hist_advertise(exportState, fldsExport, flds_scalar_name, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     else if (trim(datamode) == 'iaf') then
        call docn_datamode_iaf_advertise(importState, exportState, fldsImport, fldsExport, flds_scalar_name, rc)
@@ -479,6 +488,9 @@ contains
        case('sstdata', 'sst_aquap_file')
           call docn_datamode_copyall_init_pointers(exportState, model_frac, rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       case('hist')
+          call docn_datamode_hist_init_pointers(exportState, rc)
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('iaf')
           call docn_datamode_iaf_init_pointers(importState, exportState, model_frac, rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -495,6 +507,8 @@ contains
           select case (trim(datamode))
           case('sstdata', 'sst_aquap_file')
              call docn_datamode_copyall_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
+          case('hist')
+             call docn_datamode_hist_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
           case('iaf')
              call docn_datamode_iaf_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
           case('som', 'som_aquap')
@@ -530,6 +544,9 @@ contains
     case('sstdata','sst_aquap_file')
        call  docn_datamode_copyall_advance(rc=rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    case('hist')
+       call  docn_datamode_hist_advance(rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     case('iaf')
        call  docn_datamode_iaf_advance(rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -549,6 +566,9 @@ contains
        select case (trim(datamode))
        case('sstdata','sst_aquap_file')
           call docn_datamode_copyall_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
+               logunit, my_task, sdat)
+       case('hist')
+          call docn_datamode_hist_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
        case('iaf')
           call docn_datamode_iaf_restart_write(case_name, inst_suffix, target_ymd, target_tod, &

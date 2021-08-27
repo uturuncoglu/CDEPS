@@ -47,6 +47,12 @@ module cdeps_dice_comp
   use dice_datamode_cice_mod , only : dice_datamode_cice_restart_read
   use dice_datamode_cice_mod , only : dice_datamode_cice_restart_write
 
+  use dice_datamode_hist_mod , only : dice_datamode_hist_advertise
+  use dice_datamode_hist_mod , only : dice_datamode_hist_init_pointers
+  use dice_datamode_hist_mod , only : dice_datamode_hist_advance
+  use dice_datamode_hist_mod , only : dice_datamode_hist_restart_read
+  use dice_datamode_hist_mod , only : dice_datamode_hist_restart_write
+
   implicit none
   private ! except
 
@@ -243,7 +249,8 @@ contains
     ! Validate datamode
     if ( trim(datamode) == 'ssmi' .or. &
          trim(datamode) == 'ssmi_iaf' .or. &
-         trim(datamode) == 'cice') then
+         trim(datamode) == 'cice' .or. &
+         trim(datamode) == 'hist') then
        if (my_task == master_task) write(logunit,*) ' dice datamode = ',trim(datamode)
     else
        call shr_sys_abort(' ERROR illegal dice datamode = '//trim(datamode))
@@ -265,6 +272,10 @@ contains
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     case('cice')
        call dice_datamode_cice_advertise(importState, exportState, fldsimport, fldsexport, &
+            flds_scalar_name, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    case('hist')
+       call dice_datamode_hist_advertise(importState, exportState, fldsimport, fldsexport, &
             flds_scalar_name, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end select
@@ -497,7 +508,7 @@ contains
           if (chkerr(rc,__LINE__,u_FILE_u)) return
           call dice_datamode_ssmi_init_pointers(importState, exportState, sdat, flds_i2o_per_cat, rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
-       case('cice')
+       case('cice', 'hist')
           ! Initialize dfields
           call dice_init_dfields(importState, exportState, rc=rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -512,6 +523,8 @@ contains
              call dice_datamode_ssmi_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
           case('cice')
              call dice_datamode_cice_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
+          case('hist')
+             call dice_datamode_hist_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
           end select
        end if
 
@@ -556,6 +569,9 @@ contains
     case ('cice')
        call dice_datamode_cice_advance(exportState, importState, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    case ('hist')
+       call dice_datamode_hist_advance(exportState, importState, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end select
 
     ! Write restarts if needed
@@ -567,6 +583,10 @@ contains
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('cice')
           call dice_datamode_cice_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
+               logunit, my_task, sdat)
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       case('hist')
+          call dice_datamode_hist_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
        end select
