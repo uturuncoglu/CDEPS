@@ -659,7 +659,7 @@ contains
             target_tod, sdat%model_calendar, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     case('GFS')
-       call datm_datamode_gfs_advance(exportstate, masterproc, logunit, mpicom, target_ymd, &
+       call datm_datamode_gfs_advance(exportstate, mainproc, logunit, mpicom, target_ymd, &
             target_tod, sdat%model_calendar, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end select
