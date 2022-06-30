@@ -76,6 +76,7 @@ module cdeps_dwav_comp
   character(CL)                :: restfilm = nullstr                  ! model restart file namelist
   integer                      :: nx_global
   integer                      :: ny_global
+  logical                      :: export_all = .false.                ! true => export all fields, do not check connected or not
 
   ! constants
   logical                      :: diagnose_data = .true.
@@ -168,7 +169,7 @@ contains
     !-------------------------------------------------------------------------------
 
     namelist / dwav_nml / datamode, model_meshfile, model_maskfile, &
-         restfilm, nx_global, ny_global
+         restfilm, nx_global, ny_global, export_all
 
     rc = ESMF_SUCCESS
 
@@ -197,12 +198,13 @@ contains
        end if
 
        ! write namelist input to standard out
-       write(logunit,F00)' datamode = ',trim(datamode)
+       write(logunit,F00)' datamode       = ',trim(datamode)
        write(logunit,F00)' model_meshfile = ',trim(model_meshfile)
        write(logunit,F00)' model_maskfile = ',trim(model_maskfile)
-       write(logunit,F01)' nx_global = ',nx_global
-       write(logunit,F01)' ny_global = ',ny_global
-       write(logunit,F00)' restfilm = ',trim(restfilm)
+       write(logunit,F01)' nx_global      = ',nx_global
+       write(logunit,F01)' ny_global      = ',ny_global
+       write(logunit,F00)' restfilm       = ',trim(restfilm)
+       write(logunit,F02)' export_all     = ',export_all
     endif
 
     ! broadcast namelist input
@@ -212,6 +214,7 @@ contains
     call shr_mpi_bcast(nx_global                 , mpicom, 'nx_global')
     call shr_mpi_bcast(ny_global                 , mpicom, 'ny_global')
     call shr_mpi_bcast(restfilm                  , mpicom, 'restfilm')
+    call shr_mpi_bcast(export_all                , mpicom, 'export_all')
 
     ! Call advertise phase
     if (trim(datamode) == 'copyall') then
@@ -262,7 +265,7 @@ contains
 
     ! Realize the actively coupled fields, now that a mesh is established and
     ! initialize dfields data type (to map streams to export state fields)
-    call dwav_comp_realize(importState, exportState, rc=rc)
+    call dwav_comp_realize(importState, exportState, export_all, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Read restart if necessary
@@ -411,11 +414,12 @@ contains
   end subroutine dwav_comp_advertise
 
   !===============================================================================
-  subroutine dwav_comp_realize(importState, exportState, rc)
+  subroutine dwav_comp_realize(importState, exportState, export_all, rc)
 
     ! input/output variables
     type(ESMF_State)       , intent(inout) :: importState
     type(ESMF_State)       , intent(inout) :: exportState
+    logical                , intent(in)    :: export_all
     integer                , intent(out)   :: rc
 
     ! local variables
@@ -430,7 +434,7 @@ contains
     ! -------------------------------------
 
     call dshr_fldlist_realize( exportState, fldsExport, flds_scalar_name, flds_scalar_num,  model_mesh, &
-         subname//':dwavExport', rc=rc)
+         subname//':dwavExport', export_all, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Create stream-> export state mapping

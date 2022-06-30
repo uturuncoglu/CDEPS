@@ -79,6 +79,7 @@ module cdeps_dlnd_comp
   character(CL)            :: restfilm = nullstr                  ! model restart file namelist
   integer                  :: nx_global                           ! global nx dimension of model mesh
   integer                  :: ny_global                           ! global ny dimension of model mesh
+  logical                  :: export_all = .false.                ! true => export all fields, do not check connected or not
 
   ! linked lists
   type(fldList_type) , pointer :: fldsExport => null()
@@ -173,7 +174,7 @@ contains
     !-------------------------------------------------------------------------------
 
     namelist / dlnd_nml / datamode, model_meshfile, model_maskfile, &
-         nx_global, ny_global, restfilm, force_prognostic_true
+         nx_global, ny_global, restfilm, force_prognostic_true, export_all
 
     rc = ESMF_SUCCESS
 
@@ -208,16 +209,18 @@ contains
     call shr_mpi_bcast(ny_global                 , mpicom, 'ny_global')
     call shr_mpi_bcast(restfilm                  , mpicom, 'restfilm')
     call shr_mpi_bcast(force_prognostic_true     , mpicom, 'force_prognostic_true')
+    call shr_mpi_bcast(export_all                , mpicom, 'export_all')
 
     ! write namelist input to standard out
     if (my_task == main_task) then
-       write(logunit,F00)' model_meshfile = ',trim(model_meshfile)
-       write(logunit,F00)' model_maskfile = ',trim(model_maskfile)
-       write(logunit ,*)' datamode              = ',datamode
-       write(logunit ,*)' nx_global             = ',nx_global
-       write(logunit ,*)' ny_global             = ',ny_global
-       write(logunit ,*)' restfilm              = ',trim(restfilm)
-       write(logunit ,*)' force_prognostic_true = ',force_prognostic_true
+       write(logunit,F00)' model_meshfile        = ',trim(model_meshfile)
+       write(logunit,F00)' model_maskfile        = ',trim(model_maskfile)
+       write(logunit ,*) ' datamode              = ',datamode
+       write(logunit ,*) ' nx_global             = ',nx_global
+       write(logunit ,*) ' ny_global             = ',ny_global
+       write(logunit ,*) ' restfilm              = ',trim(restfilm)
+       write(logunit ,*) ' force_prognostic_true = ',force_prognostic_true
+       write(logunit,F02)' export_all            = ',export_all
     endif
 
     ! Validate sdat datamode
@@ -274,7 +277,7 @@ contains
 
     ! Realize the actively coupled fields, now that a mesh is established and
     ! initialize dfields data type (to map streams to export state fields)
-    call dlnd_comp_realize(importState, exportState, rc=rc)
+    call dlnd_comp_realize(importState, exportState, export_all, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Read restart if necessary
@@ -445,11 +448,12 @@ contains
   end subroutine dlnd_comp_advertise
 
   !===============================================================================
-  subroutine dlnd_comp_realize(importState, exportState, rc)
+  subroutine dlnd_comp_realize(importState, exportState, export_all, rc)
 
     ! input/output variables
     type(ESMF_State) , intent(inout) :: importState
     type(ESMF_State) , intent(inout) :: exportState
+    logical          , intent(in)    :: export_all
     integer          , intent(out)   :: rc
 
     ! local variables
@@ -464,7 +468,7 @@ contains
     ! -------------------------------------
 
     call dshr_fldlist_realize( exportState, fldsExport, flds_scalar_name, flds_scalar_num,  model_mesh, &
-         subname//':dlndExport', rc=rc)
+         subname//':dlndExport', export_all, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   end subroutine dlnd_comp_realize
