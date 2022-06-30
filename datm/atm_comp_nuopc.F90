@@ -146,6 +146,7 @@ module cdeps_datm_comp
   integer                      :: nx_global                           ! global nx
   integer                      :: ny_global                           ! global ny
   logical                      :: skip_restart_read = .false.         ! true => skip restart read in continuation run
+  logical                      :: export_all = .false.                ! true => export all fields, do not check connected or not
 
   ! linked lists
   type(fldList_type) , pointer :: fldsImport => null()
@@ -243,7 +244,7 @@ contains
          model_meshfile, model_maskfile, &
          nx_global, ny_global, restfilm, iradsw, factorFn_data, factorFn_mesh, &
          flds_presaero, flds_co2, flds_wiso, bias_correct, anomaly_forcing, &
-         skip_restart_read, flds_presndep, flds_preso3
+         skip_restart_read, export_all
 
     rc = ESMF_SUCCESS
 
@@ -281,31 +282,31 @@ contains
     call shr_mpi_bcast(factorFn_data             , mpicom, 'factorFn_data')
     call shr_mpi_bcast(factorFn_mesh             , mpicom, 'factorFn_mesh')
     call shr_mpi_bcast(restfilm                  , mpicom, 'restfilm')
-    call shr_mpi_bcast(flds_presaero             , mpicom, 'flds_presaero')
-    call shr_mpi_bcast(flds_presndep             , mpicom, 'flds_presndep')
+    !call shr_mpi_bcast(flds_presaero             , mpicom, 'flds_presaero')
+    !call shr_mpi_bcast(flds_presndep             , mpicom, 'flds_presndep')
     call shr_mpi_bcast(flds_preso3               , mpicom, 'flds_preso3')
     call shr_mpi_bcast(flds_co2                  , mpicom, 'flds_co2')
     call shr_mpi_bcast(flds_wiso                 , mpicom, 'flds_wiso')
     call shr_mpi_bcast(skip_restart_read         , mpicom, 'skip_restart_read')
+    call shr_mpi_bcast(export_all                , mpicom, 'export_all')
 
     ! write namelist input to standard out
     if (my_task == main_task) then
-       write(logunit,F00)' case_name      = ',trim(case_name)
-       write(logunit,F00)' datamode       = ',trim(datamode)
-       write(logunit,F00)' model_meshfile = ',trim(model_meshfile)
-       write(logunit,F00)' model_maskfile = ',trim(model_maskfile)
-       write(logunit,F01)' nx_global      = ',nx_global
-       write(logunit,F01)' ny_global      = ',ny_global
-       write(logunit,F00)' restfilm       = ',trim(restfilm)
-       write(logunit,F01)' iradsw         = ',iradsw
-       write(logunit,F00)' factorFn_data  = ',trim(factorFn_data)
-       write(logunit,F00)' factorFn_mesh  = ',trim(factorFn_mesh)
-       write(logunit,F02)' flds_presaero  = ',flds_presaero
-       write(logunit,F02)' flds_presndep  = ',flds_presndep
-       write(logunit,F02)' flds_preso3    = ',flds_preso3
-       write(logunit,F02)' flds_co2       = ',flds_co2
-       write(logunit,F02)' flds_wiso      = ',flds_wiso
+       write(logunit,F00)' case_name         = ',trim(case_name)
+       write(logunit,F00)' datamode          = ',trim(datamode)
+       write(logunit,F00)' model_meshfile    = ',trim(model_meshfile)
+       write(logunit,F00)' model_maskfile    = ',trim(model_maskfile)
+       write(logunit,F01)' nx_global         = ',nx_global
+       write(logunit,F01)' ny_global         = ',ny_global
+       write(logunit,F00)' restfilm          = ',trim(restfilm)
+       write(logunit,F01)' iradsw            = ',iradsw
+       write(logunit,F00)' factorFn_data     = ',trim(factorFn_data)
+       write(logunit,F00)' factorFn_mesh     = ',trim(factorFn_mesh)
+       write(logunit,F02)' flds_presaero     = ',flds_presaero
+       write(logunit,F02)' flds_co2          = ',flds_co2
+       write(logunit,F02)' flds_wiso         = ',flds_wiso
        write(logunit,F02)' skip_restart_read = ',skip_restart_read
+       write(logunit,F02)' export_all        = ',export_all
     end if
 
     ! Validate sdat datamode
@@ -412,10 +413,10 @@ contains
     ! NUOPC_Realize "realizes" a previously advertised field in the importState and exportState
     ! by replacing the advertised fields with the newly created fields of the same name.
     call dshr_fldlist_realize( exportState, fldsExport, flds_scalar_name, flds_scalar_num, model_mesh, &
-         subname//':datmExport', rc=rc)
+         subname//':datmExport', export_all, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call dshr_fldlist_realize( importState, fldsImport, flds_scalar_name, flds_scalar_num, model_mesh, &
-         subname//':datmImport', rc=rc)
+         subname//':datmImport', .false., rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Get the time to interpolate the stream data to
@@ -775,6 +776,7 @@ contains
       call ESMF_StateGet(exportState, itemNameList=lfieldnames, rc=rc)
       if (chkerr(rc,__LINE__,u_FILE_u)) return
       do n = 1, fieldCount
+         call ESMF_LogWrite(trim(subname)//': field name = '//trim(lfieldnames(n)), ESMF_LOGMSG_INFO)
          call ESMF_StateGet(exportState, itemName=trim(lfieldnames(n)), field=lfield, rc=rc)
          if (chkerr(rc,__LINE__,u_FILE_u)) return
          call ESMF_FieldGet(lfield, rank=rank, rc=rc)
