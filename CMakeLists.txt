@@ -123,6 +123,16 @@ foreach(COMP datm dice dlnd docn drof dwav)
           COMPONENT Library)
   install(EXPORT      ${COMP}
           DESTINATION lib/cmake)
+
+  # CMake export for ESMX driver 
+  file(WRITE  ${CMAKE_INSTALL_PREFIX}/lib/cmake/${COMP}-esmx.cmake "add_library(${COMP} STATIC IMPORTED)\n")
+  file(APPEND ${CMAKE_INSTALL_PREFIX}/lib/cmake/${COMP}-esmx.cmake "set_target_properties(${COMP} PROPERTIES\n")
+  file(APPEND ${CMAKE_INSTALL_PREFIX}/lib/cmake/${COMP}-esmx.cmake "  IMPORTED_LOCATION \"${CMAKE_INSTALL_PREFIX}/lib/lib${COMP}.a\"\n")
+  file(APPEND ${CMAKE_INSTALL_PREFIX}/lib/cmake/${COMP}-esmx.cmake "  INTERFACE_INCLUDE_DIRECTORIES \"${CMAKE_INSTALL_PREFIX}/include\"\n")
+  file(APPEND ${CMAKE_INSTALL_PREFIX}/lib/cmake/${COMP}-esmx.cmake "  INTERFACE_LINK_DIRECTORIES  \"${CMAKE_INSTALL_PREFIX}/lib\"\n")
+  file(APPEND ${CMAKE_INSTALL_PREFIX}/lib/cmake/${COMP}-esmx.cmake "  INTERFACE_LINK_LIBRARIES  \"${COMP};dshr;streams;cdeps_share;piof\"\n")
+  file(APPEND ${CMAKE_INSTALL_PREFIX}/lib/cmake/${COMP}-esmx.cmake ")\n")
+  file(APPEND ${CMAKE_INSTALL_PREFIX}/lib/cmake/${COMP}-esmx.cmake "target_link_libraries(esmx_driver PUBLIC ${COMP})\n")  
 endforeach(COMP)
 
 foreach(DEPS streams dshr cdeps_share FoX_dom FoX_wxml FoX_sax FoX_common FoX_utils FoX_fsys)
