@@ -76,6 +76,7 @@ module cdeps_drof_comp
   integer                      :: nx_global
   integer                      :: ny_global
   logical                      :: skip_restart_read = .false.         ! true => skip restart read 
+  logical                      :: export_all = .false.                ! true => export all fields, do not check connected or not
   logical                      :: diagnose_data = .true.
   integer      , parameter     :: main_task=0                       ! task number of main task
   character(*) , parameter     :: rpfile = 'rpointer.rof'
@@ -171,7 +172,7 @@ contains
     !-------------------------------------------------------------------------------
 
     namelist / drof_nml / datamode, model_meshfile, model_maskfile, &
-         restfilm, nx_global, ny_global, skip_restart_read
+         restfilm, nx_global, ny_global, skip_restart_read, export_all
 
     rc = ESMF_SUCCESS
 
@@ -200,13 +201,14 @@ contains
        end if
 
        ! write namelist input to standard out
-       write(logunit,F00)' datamode = ',trim(datamode)
+       write(logunit,F00)' datamode       = ',trim(datamode)
        write(logunit,F00)' model_meshfile = ',trim(model_meshfile)
        write(logunit,F00)' model_maskfile = ',trim(model_maskfile)
        write(logunit,F01)' nx_global = ',nx_global
        write(logunit,F01)' ny_global = ',ny_global
        write(logunit,F00)' restfilm = ',trim(restfilm)
        write(logunit,F02)' skip_restart_read = ',skip_restart_read
+       write(logunit,F02)' export_all     = ',export_all
     end if
 
     ! broadcast namelist input
@@ -217,6 +219,7 @@ contains
     call shr_mpi_bcast(ny_global                 , mpicom, 'ny_global')
     call shr_mpi_bcast(restfilm                  , mpicom, 'restfilm')
     call shr_mpi_bcast(skip_restart_read         , mpicom, 'skip_restart_read')
+    call shr_mpi_bcast(export_all                , mpicom, 'export_all')
 
     ! Validate datamode
     if (trim(datamode) == 'copyall') then
@@ -279,7 +282,7 @@ contains
     ! NUOPC_Realize "realizes" a previously advertised field in the importState and exportState
     ! by replacing the advertised fields with the newly created fields of the same name.
     call dshr_fldlist_realize( exportState, fldsExport, flds_scalar_name, flds_scalar_num, model_mesh, &
-         subname//':drofExport', rc=rc)
+         subname//':drofExport', export_all, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! Get the time to interpolate the stream data to

@@ -84,6 +84,7 @@ module cdeps_dice_comp
   character(CL)                :: restfilm = nullstr                  ! model restart file namelist
   integer                      :: nx_global
   integer                      :: ny_global
+  logical                      :: export_all = .false.                ! true => export all fields, do not check connected or not
 
   ! linked lists
   type(fldList_type) , pointer :: fldsImport => null()
@@ -180,7 +181,8 @@ contains
 
     namelist / dice_nml / case_name, datamode, &
          model_meshfile, model_maskfile, &
-         restfilm, nx_global, ny_global, flux_swpf, flux_Qmin, flux_Qacc, flux_Qacc0
+         restfilm, nx_global, ny_global, &
+         flux_swpf, flux_Qmin, flux_Qacc, flux_Qacc0, export_all
 
     rc = ESMF_SUCCESS
 
@@ -209,16 +211,17 @@ contains
        end if
 
        ! write namelist input to standard out
-       write(logunit,F00)' datamode = ',trim(datamode)
+       write(logunit,F00)' datamode       = ',trim(datamode)
        write(logunit,F00)' model_meshfile = ',trim(model_meshfile)
        write(logunit,F00)' model_maskfile = ',trim(model_maskfile)
-       write(logunit,F01)' nx_global  = ',nx_global
-       write(logunit,F01)' ny_global  = ',ny_global
-       write(logunit,F03)' flux_swpf  = ',flux_swpf
-       write(logunit,F03)' flux_Qmin  = ',flux_Qmin
-       write(logunit,F02)' flux_Qacc  = ',flux_Qacc
-       write(logunit,F03)' flux_Qacc0 = ',flux_Qacc0
-       write(logunit,F00)' restfilm = ',trim(restfilm)
+       write(logunit,F01)' nx_global      = ',nx_global
+       write(logunit,F01)' ny_global      = ',ny_global
+       write(logunit,F03)' flux_swpf      = ',flux_swpf
+       write(logunit,F03)' flux_Qmin      = ',flux_Qmin
+       write(logunit,F02)' flux_Qacc      = ',flux_Qacc
+       write(logunit,F03)' flux_Qacc0     = ',flux_Qacc0
+       write(logunit,F00)' restfilm       = ',trim(restfilm)
+       write(logunit,F02)' export_all     = ',trim(restfilm)
     endif
 
     ! broadcast namelist input
@@ -232,6 +235,7 @@ contains
     call shr_mpi_bcast(flux_Qmin      , mpicom, 'flux_Qmin')
     call shr_mpi_bcast(flux_Qacc      , mpicom, 'flux_Qacc')
     call shr_mpi_bcast(flux_Qacc0     , mpicom, 'flux_Qacc0')
+    call shr_mpi_bcast(export_all     , mpicom, 'export_all')
 
     ! Validate datamode
     if ( trim(datamode) == 'ssmi' .or. trim(datamode) == 'ssmi_iaf') then
@@ -303,10 +307,10 @@ contains
     ! NUOPC_Realize "realizes" a previously advertised field in the importState and exportState
     ! by replacing the advertised fields with the newly created fields of the same name.
     call dshr_fldlist_realize( exportState, fldsExport, flds_scalar_name, flds_scalar_num, model_mesh, &
-         subname//':diceExport', rc=rc)
+         subname//':diceExport', export_all, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call dshr_fldlist_realize( importState, fldsImport, flds_scalar_name, flds_scalar_num, model_mesh, &
-         subname//':diceImport', rc=rc)
+         subname//':diceImport', .false., rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
     ! for single column, the target point might not be a point where the ice/ocn mask is > 0
