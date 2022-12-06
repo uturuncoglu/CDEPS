@@ -662,8 +662,6 @@ contains
       if( ESMF_ConfigGetLen(config=CF, label="stream_vectors"//mystrm//':', rc=rc) > 0 ) then
         call ESMF_ConfigGetAttribute(CF,value=streamdat(i)%stream_vectors,label="stream_vectors"//mystrm//':', rc=rc)
         if (ChkErr(rc,__LINE__,u_FILE_u)) return
-      else
-        call shr_sys_abort("stream_vectors must be provided")
       endif
 
       if( ESMF_ConfigGetLen(config=CF, label="stream_lev_dimname"//mystrm//':', rc=rc) > 0 ) then
