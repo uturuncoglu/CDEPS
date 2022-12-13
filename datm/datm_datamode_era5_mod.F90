@@ -258,7 +258,7 @@ contains
     ! local variables
     logical  :: first_time = .true.
     integer  :: n                   ! indices
-    integer  :: lsize               ! size of attr vect
+    integer  :: lsize = 0           ! size of attr vect
     real(r8) :: rtmp
     real(r8) :: tbot, pbot
     real(r8) :: vp
@@ -268,7 +268,12 @@ contains
 
     rc = ESMF_SUCCESS
 
+    ! one of the following needs tobe in the stream
     if (associated(Sa_z)) lsize = size(Sa_z)
+    if (associated(strm_tdew)) lsize = size(strm_tdew)
+    if (mainproc .and. lsize == 0) then
+       write(logunit,*) trim(subname),' Sa_z or Sa_tdew need to be in the stream! Exiting ...'
+    end if
 
     if (first_time) then
        ! determine t2max
@@ -316,7 +321,7 @@ contains
 
     do n = 1, lsize
        !--- bottom layer height ---
-       if (.not. associated(strm_z)) then
+       if (.not. associated(strm_z) .and. associated(Sa_z)) then
           Sa_z(n) = 10.0_r8
        end if
 
@@ -331,10 +336,10 @@ contains
        end if
 
        !--- calculate wind speed if wind components are provided ---
-       if (associated(strm_u10m) .and. associated(strm_v10m)) then
+       if (associated(strm_u10m) .and. associated(strm_v10m) .and. associated(Sa_wspd10m)) then
           Sa_wspd10m(n) = sqrt(Sa_u10m(n)*Sa_u10m(n)+Sa_v10m(n)*Sa_v10m(n))
        end if
-       if (associated(strm_u) .and. associated(strm_v)) then
+       if (associated(strm_u) .and. associated(strm_v) .and. associated(Sa_wspd)) then
           Sa_wspd(n) = sqrt(Sa_u(n)*Sa_u(n)+Sa_v(n)*Sa_v(n))
        end if
 
@@ -352,13 +357,11 @@ contains
              pbot = Sa_pbot(n)
           end if
 
-          if (associated(strm_tdew)) then
-             if (td2max < 50.0_r8) strm_tdew(n) = strm_tdew(n) + tkFrz
-             e = datm_eSat(strm_tdew(n), tbot)
-             qsat = (0.622_r8 * e)/(pbot - 0.378_r8 * e)
-             if (associated(Sa_q2m)) Sa_q2m(n) = qsat
-             if (associated(Sa_shum)) Sa_shum(n) = qsat
-          end if
+          if (td2max < 50.0_r8) strm_tdew(n) = strm_tdew(n) + tkFrz
+          e = datm_eSat(strm_tdew(n), tbot)
+          qsat = (0.622_r8 * e)/(pbot - 0.378_r8 * e)
+          if (associated(Sa_q2m)) Sa_q2m(n) = qsat
+          if (associated(Sa_shum)) Sa_shum(n) = qsat
        end if
     end do
 
