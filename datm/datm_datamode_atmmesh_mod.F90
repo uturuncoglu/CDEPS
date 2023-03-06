@@ -1,4 +1,4 @@
-module datm_datamode_copyall_mod
+module datm_datamode_atmmesh_mod
 
   use ESMF             , only : ESMF_State, ESMF_LOGMSG_INFO, ESMF_LogWrite, ESMF_SUCCESS
   use NUOPC            , only : NUOPC_Advertise
@@ -13,11 +13,11 @@ module datm_datamode_copyall_mod
   implicit none
   private ! except
 
-  public  :: datm_datamode_copyall_advertise
-  public  :: datm_datamode_copyall_init_pointers
-  public  :: datm_datamode_copyall_advance
-  public  :: datm_datamode_copyall_restart_read
-  public  :: datm_datamode_copyall_restart_write
+  public  :: datm_datamode_atmmesh_advertise
+  public  :: datm_datamode_atmmesh_init_pointers
+  public  :: datm_datamode_atmmesh_advance
+  public  :: datm_datamode_atmmesh_restart_read
+  public  :: datm_datamode_atmmesh_restart_write
 
   ! export fields
   real(r8), pointer :: Sa_pslv(:) => null() ! sea level pressure
@@ -33,7 +33,7 @@ module datm_datamode_copyall_mod
 contains
 !===============================================================================
 
-  subroutine datm_datamode_copyall_advertise(exportState, fldsexport, flds_scalar_name, rc)
+  subroutine datm_datamode_atmmesh_advertise(exportState, fldsexport, flds_scalar_name, rc)
 
     ! input/output variables
     type(esmf_State)   , intent(inout) :: exportState
@@ -61,10 +61,10 @@ contains
        fldList => fldList%next
     enddo
 
-  end subroutine datm_datamode_copyall_advertise
+  end subroutine datm_datamode_atmmesh_advertise
 
   !===============================================================================
-  subroutine datm_datamode_copyall_init_pointers(exportState, sdat, rc)
+  subroutine datm_datamode_atmmesh_init_pointers(exportState, sdat, rc)
 
     ! input/output variables
     type(ESMF_State)       , intent(inout) :: exportState
@@ -95,10 +95,10 @@ contains
       Sa_v10m(:) = 0.0_r8
     end if
 
-  end subroutine datm_datamode_copyall_init_pointers
+  end subroutine datm_datamode_atmmesh_init_pointers
 
   !===============================================================================
-  subroutine datm_datamode_copyall_advance(mainproc, logunit, mpicom, rc)
+  subroutine datm_datamode_atmmesh_advance(mainproc, logunit, mpicom, rc)
 
     ! input/output variables
     logical                , intent(in)    :: mainproc
@@ -109,7 +109,7 @@ contains
     ! local variables
     integer  :: n                   ! indices
     integer  :: lsize               ! size of attr vect
-    character(len=*), parameter :: subname='(datm_datamode_copyall_advance): '
+    character(len=*), parameter :: subname='(datm_datamode_atmmesh_advance): '
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
@@ -121,10 +121,10 @@ contains
     !   if (.not. associated(strm_z)) Sa_z(n) = 30.0_r8
     !end do
 
-  end subroutine datm_datamode_copyall_advance
+  end subroutine datm_datamode_atmmesh_advance
 
   !===============================================================================
-  subroutine datm_datamode_copyall_restart_write(case_name, inst_suffix, ymd, tod, &
+  subroutine datm_datamode_atmmesh_restart_write(case_name, inst_suffix, ymd, tod, &
        logunit, my_task, sdat)
 
     ! input/output variables
@@ -140,10 +140,10 @@ contains
     call dshr_restart_write(rpfile, case_name, 'datm', inst_suffix, ymd, tod, &
          logunit, my_task, sdat)
 
-  end subroutine datm_datamode_copyall_restart_write
+  end subroutine datm_datamode_atmmesh_restart_write
 
   !===============================================================================
-  subroutine datm_datamode_copyall_restart_read(rest_filem, inst_suffix, logunit, my_task, mpicom, sdat)
+  subroutine datm_datamode_atmmesh_restart_read(rest_filem, inst_suffix, logunit, my_task, mpicom, sdat)
 
     ! input/output arguments
     character(len=*)            , intent(inout) :: rest_filem
@@ -156,6 +156,6 @@ contains
 
     call dshr_restart_read(rest_filem, rpfile, inst_suffix, nullstr, logunit, my_task, mpicom, sdat)
 
-  end subroutine datm_datamode_copyall_restart_read
+  end subroutine datm_datamode_atmmesh_restart_read
 
-end module datm_datamode_copyall_mod
+end module datm_datamode_atmmesh_mod
