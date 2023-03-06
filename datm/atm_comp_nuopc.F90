@@ -15,7 +15,7 @@ module cdeps_datm_comp
   use ESMF             , only : ESMF_Time, ESMF_Alarm, ESMF_TimeGet, ESMF_TimeInterval
   use ESMF             , only : operator(+), ESMF_TimeIntervalGet, ESMF_ClockGetAlarm
   use ESMF             , only : ESMF_AlarmIsRinging, ESMF_AlarmRingerOff, ESMF_StateGet
-  use ESMF             , only : ESMF_FieldGet, ESMF_MAXSTR
+  use ESMF             , only : ESMF_FieldGet, ESMF_FieldIsCreated, ESMF_MAXSTR
   use ESMF             , only : ESMF_TraceRegionEnter, ESMF_TraceRegionExit
   use NUOPC            , only : NUOPC_CompDerive, NUOPC_CompSetEntryPoint, NUOPC_CompSpecialize
   use NUOPC            , only : NUOPC_CompAttributeGet, NUOPC_Advertise
@@ -86,6 +86,12 @@ module cdeps_datm_comp
   use datm_datamode_gfs_mod    , only : datm_datamode_gfs_advance
   use datm_datamode_gfs_mod    , only : datm_datamode_gfs_restart_write
   use datm_datamode_gfs_mod    , only : datm_datamode_gfs_restart_read
+
+  use datm_datamode_copyall_mod, only : datm_datamode_copyall_advertise
+  use datm_datamode_copyall_mod, only : datm_datamode_copyall_init_pointers
+  use datm_datamode_copyall_mod, only : datm_datamode_copyall_advance
+  use datm_datamode_copyall_mod, only : datm_datamode_copyall_restart_write
+  use datm_datamode_copyall_mod, only : datm_datamode_copyall_restart_read
 
   implicit none
   private ! except
@@ -312,7 +318,8 @@ contains
          trim(datamode) == 'GEFS'         .or. &
          trim(datamode) == 'CFSR'         .or. &
          trim(datamode) == 'GFS'          .or. &
-         trim(datamode) == 'ERA5') then
+         trim(datamode) == 'ERA5'         .or. &
+         trim(datamode) == 'COPYALL') then
     else
        call shr_sys_abort(' ERROR illegal datm datamode = '//trim(datamode))
     endif
@@ -346,6 +353,9 @@ contains
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     case ('GFS')
        call datm_datamode_gfs_advertise(exportState, fldsExport, flds_scalar_name, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    case ('COPYALL')
+       call datm_datamode_copyall_advertise(exportState, fldsExport, flds_scalar_name, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end select
 
@@ -593,6 +603,9 @@ contains
        case('GFS')
           call datm_datamode_gfs_init_pointers(exportState, sdat, rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       case('COPYALL')
+          call datm_datamode_copyall_init_pointers(exportState, sdat, rc)
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        end select
 
        ! Read restart if needed
@@ -614,6 +627,8 @@ contains
              call datm_datamode_cfsr_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
           case('GFS')
              call datm_datamode_gfs_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
+          case('COPYALL')
+             call datm_datamode_copyall_restart_read(restfilm, inst_suffix, logunit, my_task, mpicom, sdat)
           end select
        end if
 
@@ -664,6 +679,7 @@ contains
     case('GEFS')
        call datm_datamode_gefs_advance(exportstate, mainproc, logunit, mpicom, target_ymd, &
             target_tod, sdat%model_calendar, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     case('CFSR')
        call datm_datamode_cfsr_advance(exportstate, mainproc, logunit, mpicom, target_ymd, &
             target_tod, sdat%model_calendar, rc)
@@ -671,6 +687,9 @@ contains
     case('GFS')
        call datm_datamode_gfs_advance(exportstate, mainproc, logunit, mpicom, target_ymd, &
             target_tod, sdat%model_calendar, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+    case('COPYALL')
+       call datm_datamode_copyall_advance(mainproc, logunit, mpicom, rc)
        if (ChkErr(rc,__LINE__,u_FILE_u)) return
     end select
 
@@ -702,6 +721,10 @@ contains
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('GFS')
           call datm_datamode_gfs_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
+               logunit, my_task, sdat)
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       case('COPYALL')
+          call datm_datamode_copyall_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
        end select
