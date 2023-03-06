@@ -166,6 +166,7 @@ contains
 
   !===============================================================================
   subroutine datm_datamode_gfs_advance(exportstate, mainproc, logunit, mpicom, target_ymd, target_tod, model_calendar, rc)
+    use ESMF, only: ESMF_VMGetCurrent, ESMF_VMAllReduce, ESMF_REDUCE_MAX, ESMF_VM
 
     ! input/output variables
     type(ESMF_State)       , intent(inout) :: exportState
@@ -181,8 +182,9 @@ contains
     logical  :: first_time = .true.
     integer  :: n                   ! indices
     integer  :: lsize               ! size of attr vect
-    real(r8) :: rtmp
+    real(r8) :: rtmp(2)
     real(r8) :: tbot, pbot
+    type(ESMF_VM) :: vm
     character(len=*), parameter :: subname='(datm_datamode_gfs_advance): '
     !-------------------------------------------------------------------------------
 
@@ -191,14 +193,24 @@ contains
     lsize = size(strm_mask)
 
     if (first_time) then
+       call ESMF_VMGetCurrent(vm, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
        ! determine tbotmax (see below for use)
-       rtmp = maxval(Sa_tbot(:))
-       call shr_mpi_max(rtmp, tbotmax, mpicom, 'datm_tbot', all=.true.)
+       rtmp(1) = maxval(Sa_tbot(:))
+       call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       tbotmax = rtmp(2)
        if (mainproc) write(logunit,*) trim(subname),' tbotmax = ',tbotmax
+       if(tbotmax <= 0) then
+          call shr_sys_abort(subname//'ERROR: bad value in tbotmax')
+       endif
 
        ! determine maskmax (see below for use)
-       rtmp = maxval(strm_mask(:))
-       call shr_mpi_max(rtmp, maskmax, mpicom, 'datm_mask', all=.true.)
+       rtmp(1) = maxval(strm_mask(:))
+       call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
+       tbotmax = rtmp(2)
        if (mainproc) write(logunit,*) trim(subname),' maskmax = ',maskmax
 
        ! reset first_time
