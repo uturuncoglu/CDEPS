@@ -5,7 +5,6 @@ module datm_datamode_era5_mod
   use shr_kind_mod     , only : r8=>shr_kind_r8, i8=>shr_kind_i8, cl=>shr_kind_cl, cs=>shr_kind_cs
   use shr_sys_mod      , only : shr_sys_abort
   use shr_precip_mod   , only : shr_precip_partition_rain_snow_ramp
-  use shr_mpi_mod      , only : shr_mpi_max
   use shr_const_mod    , only : shr_const_tkfrz, shr_const_rhofw, shr_const_rdair
   use dshr_methods_mod , only : dshr_state_getfldptr, chkerr
   use dshr_strdata_mod , only : shr_strdata_type, shr_strdata_get_stream_pointer
@@ -55,7 +54,8 @@ module datm_datamode_era5_mod
   real(r8), pointer :: Faxa_lat(:)          => null()
   real(r8), pointer :: Faxa_taux(:)         => null()
   real(r8), pointer :: Faxa_tauy(:)         => null()
-  real(r8), pointer :: Faxa_ndep(:,:)       => null()
+!
+!  real(r8), pointer :: Faxa_ndep(:,:)       => null()
 
   ! stream data
   real(r8), pointer :: strm_z(:)            => null()
@@ -69,7 +69,6 @@ module datm_datamode_era5_mod
 
   real(r8) :: t2max   ! units detector
   real(r8) :: td2max  ! units detector
-  real(r8) :: tbotmax ! units detector
   real(r8) :: lwdnmax ! units detector
   real(r8) :: precmax ! units detector
 
@@ -244,6 +243,7 @@ contains
 
   !===============================================================================
   subroutine datm_datamode_era5_advance(exportstate, mainproc, logunit, mpicom, target_ymd, target_tod, model_calendar, rc)
+    use ESMF, only: ESMF_VMGetCurrent, ESMF_VMAllReduce, ESMF_REDUCE_MAX, ESMF_VM
 
     ! input/output variables
     type(ESMF_State)       , intent(inout) :: exportState
@@ -259,16 +259,16 @@ contains
     logical  :: first_time = .true.
     integer  :: n                   ! indices
     integer  :: lsize = 0           ! size of attr vect
-    real(r8) :: rtmp
+    real(r8) :: rtmp(2)
     real(r8) :: tbot, pbot
-    real(r8) :: vp
     real(r8) :: e, qsat
+    type(ESMF_VM) :: vm
     character(len=*), parameter :: subname='(datm_datamode_era5_advance): '
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
 
-    ! one of the following needs tobe in the stream
+    ! one of the following needs to be in the stream
     if (associated(Sa_z)) lsize = size(Sa_z)
     if (associated(strm_tdew)) lsize = size(strm_tdew)
     if (mainproc .and. lsize == 0) then
@@ -276,31 +276,28 @@ contains
     end if
 
     if (first_time) then
-       ! determine t2max
+       call ESMF_VMGetCurrent(vm, rc=rc)
+       ! determine t2max (see below for use)
        if (associated(Sa_t2m)) then
-          rtmp = maxval(Sa_t2m(:))
-          call shr_mpi_max(rtmp, t2max, mpicom, 'datm_t2m', all=.true.)
+          rtmp(1) = maxval(Sa_t2m(:))
+          call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
+          t2max = rtmp(2)
           if (mainproc) write(logunit,*) trim(subname),' t2max = ',t2max
        end if
 
-       ! determine tbotmax
-       if (associated(Sa_tbot)) then
-          rtmp = maxval(Sa_tbot(:))
-          call shr_mpi_max(rtmp, tbotmax, mpicom, 'datm_tbot', all=.true.)
-          if (mainproc) write(logunit,*) trim(subname),' tbotmax = ',tbotmax
-       end if
-
-       ! determine tdewmax
+       ! determine tdewmax (see below for use)
        if (associated(strm_tdew)) then
-          rtmp = maxval(strm_tdew(:))
-          call shr_mpi_max(rtmp, td2max, mpicom, 'datm_td2m', all=.true.)
+          rtmp(1) = maxval(strm_tdew(:))
+          call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
+          td2max = rtmp(2)
           if (mainproc) write(logunit,*) trim(subname),' td2max = ',td2max
        end if
 
        ! determine lwdnmax
        if (associated(Faxa_lwdn)) then
-          rtmp = maxval(Faxa_lwdn(:))
-          call shr_mpi_max(rtmp, lwdnmax, mpicom, 'datm_lwdn', all=.true.)
+          rtmp(1) = maxval(Faxa_lwdn(:))
+          call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
+          lwdnmax = rtmp(2)
           if (mainproc) write(logunit,*) trim(subname),' lwdnmax = ',lwdnmax
        else
           lwdnmax = 0.0_r8
@@ -308,9 +305,10 @@ contains
 
        ! determine precmax
        if (associated(Faxa_rain)) then
-          rtmp = maxval(Faxa_rain(:))
-          call shr_mpi_max(rtmp, precmax, mpicom, 'datm_prec', all=.true.)
-          if (mainproc) write(logunit,*) trim(subname),' precmax = ',precmax
+          rtmp(1) = maxval(Faxa_rain(:))
+          call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
+          precmax = rtmp(2)
+          if (mainproc) write(logunit,*) trim(subname),' lwdnmax = ',lwdnmax
        else
           precmax = 0.0_r8
        end if
@@ -376,7 +374,7 @@ contains
     if (associated(Faxa_swvdf)) Faxa_swvdf(:) = Faxa_swdn(:)*Faxa_swvdf(:)
     if (associated(Faxa_swndf)) Faxa_swndf(:) = Faxa_swdn(:)*Faxa_swndf(:)
 
-    !--- TODO: need to understand relationship between shortwave bands and 
+    !--- TODO: need to understand relationship between shortwave bands and
     !--- net shortwave rad. currently it is provided directly from ERA5
     !--- and the total of the bands are not consistent with the swnet
     !--- swnet: a diagnostic quantity ---
