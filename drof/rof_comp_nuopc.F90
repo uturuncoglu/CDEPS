@@ -210,6 +210,7 @@ contains
        write(logunit,F00)' restfilm          = ',trim(restfilm)
        write(logunit,F02)' skip_restart_read = ',skip_restart_read
        write(logunit,F02)' export_all        = ',export_all
+
        bcasttmp = 0
        bcasttmp(1) = nx_global
        bcasttmp(2) = ny_global

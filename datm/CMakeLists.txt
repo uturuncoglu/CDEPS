@@ -7,8 +7,13 @@ set(SRCFILES atm_comp_nuopc.F90
              datm_datamode_gefs_mod.F90
              datm_datamode_cfsr_mod.F90
              datm_datamode_gfs_mod.F90
+<<<<<<< HEAD
              datm_datamode_era5_mod.F90
              datm_datamode_copyall_mod.F90)
+=======
+             datm_datamode_gfs_hafs_mod.F90
+             datm_datamode_era5_mod.F90)
+>>>>>>> fork/develop
 
 
 foreach(FILE ${SRCFILES})

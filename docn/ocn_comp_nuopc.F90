@@ -232,14 +232,14 @@ contains
        end if
 
        ! write namelist input to standard out
-       write(logunit,F00)' case_name          = ',trim(case_name)
-       write(logunit,F00)' datamode           = ',trim(datamode)
-       write(logunit,F00)' model_meshfile     = ',trim(model_meshfile)
-       write(logunit,F00)' model_maskfile     = ',trim(model_maskfile)
-       write(logunit,F01)' nx_global          = ',nx_global
-       write(logunit,F01)' ny_global          = ',ny_global
-       write(logunit,F00)' restfilm           = ',trim(restfilm)
-       write(logunit,F02)' skip_restart_read  = ',skip_restart_read
+       write(logunit,F00)' case_name         = ',trim(case_name)
+       write(logunit,F00)' datamode          = ',trim(datamode)
+       write(logunit,F00)' model_meshfile    = ',trim(model_meshfile)
+       write(logunit,F00)' model_maskfile    = ',trim(model_maskfile)
+       write(logunit,F01)' nx_global         = ',nx_global
+       write(logunit,F01)' ny_global         = ',ny_global
+       write(logunit,F00)' restfilm          = ',trim(restfilm)
+       write(logunit,F02)' skip_restart_read = ',skip_restart_read
        write(logunit,F00)' import_data_fields = ',trim(import_data_fields)
        write(logunit,*)  ' sst_constant_value = ',sst_constant_value
        write(logunit,F02)' export_all         = ',export_all
