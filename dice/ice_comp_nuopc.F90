@@ -185,8 +185,7 @@ contains
     namelist / dice_nml /  datamode, &
          model_meshfile, model_maskfile, &
          restfilm, nx_global, ny_global, &
-         flux_swpf, flux_Qmin, flux_Qacc, &
-         flux_Qacc0, export_all
+         flux_swpf, flux_Qmin, flux_Qacc, flux_Qacc0, export_all
 
     rc = ESMF_SUCCESS
 
@@ -224,12 +223,13 @@ contains
        write(logunit,F03)' flux_Qmin  = ',flux_Qmin
        write(logunit,F02)' flux_Qacc  = ',flux_Qacc
        write(logunit,F03)' flux_Qacc0 = ',flux_Qacc0
-       write(logunit,F00)' restfilm   = ',trim(restfilm)
+       write(logunit,F00)' restfilm = ',trim(restfilm)
        write(logunit,F02)' export_all = ',export_all
        bcasttmp = 0
        bcasttmp(1) = nx_global
        bcasttmp(2) = ny_global
        if(flux_Qacc) bcasttmp(3) = 1
+       if(export_all) bcasttmp(4) = 1
        rbcasttmp(1) = flux_swpf
        rbcasttmp(2) = flux_Qmin
        rbcasttmp(3) = flux_Qacc0
@@ -256,7 +256,7 @@ contains
     nx_global = bcasttmp(1)
     ny_global = bcasttmp(2)
     flux_Qacc = (bcasttmp(3) == 1)
-    export_all = (bcasttmp(4) == 1)
+    export_all= (bcasttmp(4) == 1)
 
     flux_swpf  = rbcasttmp(1)
     flux_Qmin  = rbcasttmp(2)

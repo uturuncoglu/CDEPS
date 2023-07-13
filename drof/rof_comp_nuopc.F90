@@ -75,8 +75,9 @@ module cdeps_drof_comp
   character(CL)                :: restfilm = nullstr                  ! model restart file namelist
   integer                      :: nx_global
   integer                      :: ny_global
-  logical                      :: skip_restart_read = .false.         ! true => skip restart read 
+  logical                      :: skip_restart_read = .false.         ! true => skip restart read
   logical                      :: export_all = .false.                ! true => export all fields, do not check connected or not
+
   logical                      :: diagnose_data = .true.
   integer      , parameter     :: main_task=0                       ! task number of main task
   character(*) , parameter     :: rpfile = 'rpointer.rof'
@@ -165,7 +166,7 @@ contains
     integer           :: ierr       ! error code
     type(fldlist_type), pointer :: fldList
     type(ESMF_VM)     :: vm
-    integer           :: bcasttmp(4)
+    integer :: bcasttmp(4)
     character(len=*),parameter :: subname=trim(modName)//':(InitializeAdvertise) '
     character(*)    ,parameter :: F00 = "('(" // trim(modName) // ") ',8a)"
     character(*)    ,parameter :: F01 = "('(" // trim(modName) // ") ',a,2x,i8)"
@@ -209,8 +210,7 @@ contains
        write(logunit,F01)' ny_global = ',ny_global
        write(logunit,F00)' restfilm = ',trim(restfilm)
        write(logunit,F02)' skip_restart_read = ',skip_restart_read
-       write(logunit,F02)' export_all     = ',export_all
-
+       write(logunit,F02)' export_all = ', export_all
        bcasttmp = 0
        bcasttmp(1) = nx_global
        bcasttmp(2) = ny_global

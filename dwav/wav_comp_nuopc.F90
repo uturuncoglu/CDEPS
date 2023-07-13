@@ -76,7 +76,7 @@ module cdeps_dwav_comp
   character(CL)                :: restfilm = nullstr                  ! model restart file namelist
   integer                      :: nx_global
   integer                      :: ny_global
-  logical                      :: skip_restart_read = .false.         ! true => skip restart read 
+  logical                      :: skip_restart_read = .false.         ! true => skip restart read
   logical                      :: export_all = .false.                ! true => export all fields, do not check connected or not
 
   ! constants
@@ -207,8 +207,7 @@ contains
        write(logunit,F01)' ny_global      = ',ny_global
        write(logunit,F00)' restfilm       = ',trim(restfilm)
        write(logunit,F02)' skip_restart_read = ',skip_restart_read
-       write(logunit,F02)' export_all     = ',export_all
-
+       write(logunit,F02)' export_all = ', export_all
        bcasttmp = 0
        bcasttmp(1) = nx_global
        bcasttmp(2) = ny_global
