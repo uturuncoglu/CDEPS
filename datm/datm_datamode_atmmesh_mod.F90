@@ -20,9 +20,14 @@ module datm_datamode_atmmesh_mod
   public  :: datm_datamode_atmmesh_restart_write
 
   ! export fields
-  real(r8), pointer :: Sa_pslv(:) => null() ! sea level pressure
-  real(r8), pointer :: Sa_u10m(:) => null() ! zonal wind height 10m
-  real(r8), pointer :: Sa_v10m(:) => null() ! meridional wind height 10m
+  real(r8), pointer :: Sa_pslv   (:) => null() ! sea level pressure
+  real(r8), pointer :: Sa_u10m   (:) => null() ! zonal wind height 10m
+  real(r8), pointer :: Sa_v10m   (:) => null() ! meridional wind height 10m
+  real(r8), pointer :: Sa_t2m    (:) => null() ! surface temperature height 2m
+  real(r8), pointer :: Sa_q2m    (:) => null() ! surface humidity height 2m
+  real(r8), pointer :: Faxa_lwdn (:) => null() ! downward longwave radiation
+  real(r8), pointer :: Faxa_swnet(:) => null() ! net shortwave radiation
+  real(r8), pointer :: Faxa_rain (:) => null() ! total precipitation
 
   character(*) , parameter :: nullstr = 'null'
   character(*) , parameter :: rpfile  = 'rpointer.atm'
@@ -52,6 +57,11 @@ contains
     call dshr_fldList_add(fldsExport, 'Sa_pslv')
     call dshr_fldList_add(fldsExport, 'Sa_u10m')
     call dshr_fldList_add(fldsExport, 'Sa_v10m')
+    call dshr_fldList_add(fldsExport, 'Sa_t2m' )
+    call dshr_fldList_add(fldsExport, 'Sa_q2m' )
+    call dshr_fldList_add(fldsExport, 'Faxa_lwdn')
+    call dshr_fldList_add(fldsExport, 'Faxa_swnet')
+    call dshr_fldList_add(fldsExport, 'Faxa_rain')
 
     fldlist => fldsExport ! the head of the linked list
     do while (associated(fldlist))
@@ -78,22 +88,31 @@ contains
     rc = ESMF_SUCCESS
 
     ! initialize pointers to export fields
-    call dshr_state_getfldptr(exportState, 'Sa_pslv', fldptr1=Sa_pslv, allowNullReturn=.true., rc=rc)
+    call dshr_state_getfldptr(exportState, 'Sa_pslv'   , fldptr1=Sa_pslv   , allowNullReturn=.true., rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-    call dshr_state_getfldptr(exportState, 'Sa_u10m', fldptr1=Sa_u10m, allowNullReturn=.true., rc=rc)
+    call dshr_state_getfldptr(exportState, 'Sa_u10m'   , fldptr1=Sa_u10m   , allowNullReturn=.true., rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
-    call dshr_state_getfldptr(exportState, 'Sa_v10m', fldptr1=Sa_v10m, allowNullReturn=.true., rc=rc)
+    call dshr_state_getfldptr(exportState, 'Sa_v10m'   , fldptr1=Sa_v10m   , allowNullReturn=.true., rc=rc)
+    if (chkerr(rc,__LINE__,u_FILE_u)) return
+    call dshr_state_getfldptr(exportState, 'Sa_t2m'    , fldptr1=Sa_t2m    , allowNullReturn=.true., rc=rc)
+    if (chkerr(rc,__LINE__,u_FILE_u)) return
+    call dshr_state_getfldptr(exportState, 'Sa_q2m'    , fldptr1=Sa_q2m    , allowNullReturn=.true., rc=rc)
+    if (chkerr(rc,__LINE__,u_FILE_u)) return
+    call dshr_state_getfldptr(exportState, 'Faxa_lwdn' , fldptr1=Faxa_lwdn , allowNullReturn=.true., rc=rc)
+    if (chkerr(rc,__LINE__,u_FILE_u)) return
+    call dshr_state_getfldptr(exportState, 'Faxa_swnet', fldptr1=Faxa_swnet, allowNullReturn=.true., rc=rc)
+    if (chkerr(rc,__LINE__,u_FILE_u)) return
+    call dshr_state_getfldptr(exportState, 'Faxa_rain' , fldptr1=Faxa_rain , allowNullReturn=.true., rc=rc)
     if (chkerr(rc,__LINE__,u_FILE_u)) return
 
-    if (associated(Sa_pslv)) then
-      Sa_pslv(:) = 0.0_r8
-    end if
-    if (associated(Sa_u10m)) then
-      Sa_u10m(:) = 0.0_r8
-    end if
-    if (associated(Sa_v10m)) then
-      Sa_v10m(:) = 0.0_r8
-    end if
+    if (associated(Sa_pslv   )) Sa_pslv   (:) = 0.0_r8
+    if (associated(Sa_u10m   )) Sa_u10m   (:) = 0.0_r8
+    if (associated(Sa_v10m   )) Sa_v10m   (:) = 0.0_r8
+    if (associated(Sa_t2m    )) Sa_t2m    (:) = 0.0_r8
+    if (associated(Sa_q2m    )) Sa_q2m    (:) = 0.0_r8
+    if (associated(Faxa_lwdn )) Faxa_lwdn (:) = 0.0_r8
+    if (associated(Faxa_swnet)) Faxa_swnet(:) = 0.0_r8
+    if (associated(Faxa_rain )) Faxa_rain (:) = 0.0_r8
 
   end subroutine datm_datamode_atmmesh_init_pointers
 
