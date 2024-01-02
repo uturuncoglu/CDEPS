@@ -19,7 +19,13 @@ module dshr_strdata_mod
   use ESMF             , only : ESMF_FieldReGridStore, ESMF_FieldRedistStore, ESMF_UNMAPPEDACTION_IGNORE
   use ESMF             , only : ESMF_TERMORDER_SRCSEQ, ESMF_FieldRegrid, ESMF_FieldFill, ESMF_FieldIsCreated
   use ESMF             , only : ESMF_REGION_TOTAL, ESMF_FieldGet, ESMF_TraceRegionExit, ESMF_TraceRegionEnter
-  use ESMF             , only : ESMF_LOGMSG_INFO, ESMF_LogWrite
+  use ESMF             , only : ESMF_REGION_SELECT, ESMF_LOGMSG_INFO, ESMF_LogWrite
+  use ESMF             , only : ESMF_EXTRAPMETHOD_NONE, ESMF_EXTRAPMETHOD_NEAREST_IDAVG
+  use ESMF             , only : ESMF_ExtrapMethod_Flag, ESMF_EXTRAPMETHOD_NEAREST_D
+  use ESMF             , only : ESMF_EXTRAPMETHOD_CREEP, ESMF_EXTRAPMETHOD_CREEP_NRST_D
+  use ESMF             , only : ESMF_TypeKind_Flag, ESMF_TYPEKIND_I4, ESMF_TYPEKIND_R4
+  use ESMF             , only : ESMF_KIND_R4, ESMF_KIND_R8, ESMF_KIND_I4
+
   use shr_kind_mod     , only : r8=>shr_kind_r8, r4=>shr_kind_r4, i2=>shr_kind_I2
   use shr_kind_mod     , only : cs=>shr_kind_cs, cl=>shr_kind_cl, cxx=>shr_kind_cxx
   use shr_sys_mod      , only : shr_sys_abort
@@ -241,7 +247,7 @@ contains
        stream_filenames, stream_fldlistFile, stream_fldListModel, &
        stream_yearFirst, stream_yearLast, stream_yearAlign, &
        stream_offset, stream_taxmode, stream_dtlimit, stream_tintalgo, &
-       stream_src_mask, stream_dst_mask, stream_name, rc)
+       stream_src_mask, stream_dst_mask, stream_extrapalgo, stream_name, rc)
 
     ! input/output variables
     type(shr_strdata_type) , intent(inout) :: sdat                   ! stream data type
@@ -265,12 +271,14 @@ contains
     character(*)           , intent(in)    :: stream_tintalgo        ! time interpolation algorithm
     integer, optional      , intent(in)    :: stream_src_mask        ! source mask value
     integer, optional      , intent(in)    :: stream_dst_mask        ! destination mask value
+    character(*), optional , intent(in)    :: stream_extrapalgo      ! extrapolation option
     character(*), optional , intent(in)    :: stream_name            ! name of stream
     integer, optional      , intent(out)   :: rc                     ! error code
 
     ! local variables
     integer :: src_mask = 0
     integer :: dst_mask = 0
+    character(len=cl) :: extrap_method = 'nearest_stod'
     ! ----------------------------------------------
 
     rc = ESMF_SUCCESS
@@ -288,6 +296,9 @@ contains
     if (present(stream_src_mask)) src_mask = stream_src_mask
     if (present(stream_dst_mask)) dst_mask = stream_dst_mask
 
+    ! Check extrapolation method
+    if (present(stream_extrapalgo)) extrap_method = trim(stream_extrapalgo)
+
     ! Initialize sdat%pstrm - ASSUME only 1 stream
     allocate(sdat%pstrm(1))
 
@@ -303,7 +314,7 @@ contains
          stream_yearFirst, stream_yearLast, stream_yearAlign, &
          stream_offset, stream_taxmode, stream_tintalgo, stream_dtlimit, &
          stream_fldlistFile, stream_fldListModel, stream_fileNames, &
-         logunit, trim(compname), src_mask, dst_mask)
+         logunit, trim(compname), src_mask, dst_mask, extrap_method)
 
     ! Now finish initializing sdat
     call shr_strdata_init(sdat, model_clock, stream_name, rc)
@@ -397,6 +408,7 @@ contains
     integer                      :: localpet
     logical                      :: fileExists
     type(ESMF_VM)                :: vm
+    type(ESMF_ExtrapMethod_Flag) :: extrapMethod
     logical                      :: mainproc
     integer                      :: nvars
     integer                      :: i, stream_nlev, index
@@ -546,6 +558,21 @@ contains
           end if
        endif
 
+       ! Set extrapolation method
+       if (trim(sdat%stream(ns)%extrapAlgo) == "none") then
+          extrapMethod = ESMF_EXTRAPMETHOD_NONE
+       else if (trim(sdat%stream(ns)%extrapAlgo) == "nearest_idavg") then
+          extrapMethod = ESMF_EXTRAPMETHOD_NEAREST_IDAVG
+       else if (trim(sdat%stream(ns)%extrapAlgo) == "nearest_stod") then
+          extrapMethod = ESMF_EXTRAPMETHOD_NEAREST_STOD
+       else if (trim(sdat%stream(ns)%extrapAlgo) == "nearest_d") then
+          extrapMethod = ESMF_EXTRAPMETHOD_NEAREST_D
+       else if (trim(sdat%stream(ns)%extrapAlgo) == "creep") then
+          extrapMethod = ESMF_EXTRAPMETHOD_CREEP
+       else if (trim(sdat%stream(ns)%extrapAlgo) == "creep_nrst_d") then
+          extrapMethod = ESMF_EXTRAPMETHOD_CREEP_NRST_D
+       end if
+
        ! Why not use fldbun_model rather than fldbun_data?
        index = sdat%pstrm(ns)%stream_lb
        call dshr_fldbun_getFieldN(sdat%pstrm(ns)%fldbun_data(index), 1, lfield_dst, rc=rc)
@@ -559,10 +586,12 @@ contains
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   regridmethod=ESMF_REGRIDMETHOD_BILINEAR,  &
                   polemethod=ESMF_POLEMETHOD_ALLAVG, &
-                  extrapMethod=ESMF_EXTRAPMETHOD_NEAREST_STOD, &
+                  extrapMethod=extrapMethod, &
+                  extrapNumLevels=2, &
                   dstMaskValues=(/sdat%stream(ns)%dst_mask_val/), &
                   srcMaskValues=(/sdat%stream(ns)%src_mask_val/), &
-                  srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., rc=rc)
+                  srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., & 
+                  unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
              if (chkerr(rc,__LINE__,u_FILE_u)) return
           else if (trim(sdat%stream(ns)%mapalgo) == 'redist') then
              call ESMF_FieldRedistStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
@@ -1265,14 +1294,15 @@ contains
     write(sdat%stream(1)%logunit,F01) "nstreams    = ",shr_strdata_get_stream_count(sdat)
     write(sdat%stream(1)%logunit,F04) "Per stream information "
     do ns = 1, shr_strdata_get_stream_count(sdat)
-       write(sdat%stream(1)%logunit,F03) "  taxMode (",ns,") = ",trim(sdat%stream(ns)%taxmode)
-       write(sdat%stream(1)%logunit,F05) "  dtlimit (",ns,") = ",sdat%stream(ns)%dtlimit
-       write(sdat%stream(1)%logunit,F03) "  mapalgo (",ns,") = ",trim(sdat%stream(ns)%mapalgo)
-       write(sdat%stream(1)%logunit,F03) "  tintalgo(",ns,") = ",trim(sdat%stream(ns)%tinterpalgo)
-       write(sdat%stream(1)%logunit,F03) "  readmode(",ns,") = ",trim(sdat%stream(ns)%readmode)
-       write(sdat%stream(1)%logunit,F03) "  vectors (",ns,") = ",trim(sdat%stream(ns)%stream_vectors)
-       write(sdat%stream(1)%logunit,F06) "  src_mask(",ns,") = ",sdat%stream(ns)%src_mask_val
-       write(sdat%stream(1)%logunit,F06) "  dst_mask(",ns,") = ",sdat%stream(ns)%dst_mask_val
+       write(sdat%stream(1)%logunit,F03) "  taxMode (",ns,")   = ",trim(sdat%stream(ns)%taxmode)
+       write(sdat%stream(1)%logunit,F05) "  dtlimit (",ns,")   = ",sdat%stream(ns)%dtlimit
+       write(sdat%stream(1)%logunit,F03) "  mapalgo (",ns,")   = ",trim(sdat%stream(ns)%mapalgo)
+       write(sdat%stream(1)%logunit,F03) "  tintalgo(",ns,")   = ",trim(sdat%stream(ns)%tinterpalgo)
+       write(sdat%stream(1)%logunit,F03) "  readmode(",ns,")   = ",trim(sdat%stream(ns)%readmode)
+       write(sdat%stream(1)%logunit,F03) "  vectors (",ns,")   = ",trim(sdat%stream(ns)%stream_vectors)
+       write(sdat%stream(1)%logunit,F06) "  src_mask(",ns,")   = ",sdat%stream(ns)%src_mask_val
+       write(sdat%stream(1)%logunit,F06) "  dst_mask(",ns,")   = ",sdat%stream(ns)%dst_mask_val
+       write(sdat%stream(1)%logunit,F03) "  extrapalgo(",ns,") = ",trim(sdat%stream(ns)%extrapalgo)
        write(sdat%stream(1)%logunit,F01) " "
     end do
     write(sdat%stream(1)%logunit,F90)
@@ -1432,6 +1462,7 @@ contains
     ! local variables
     integer                  :: stream_nlev
     type(ESMF_Field)         :: field_dst, field_vector_dst
+    type(ESMF_TypeKind_Flag) :: typekind
     character(CL)            :: currfile
     logical                  :: fileexists
     logical                  :: fileopen
@@ -1814,11 +1845,21 @@ contains
        elseif(associated(dataptr2d_src) .and. trim(per_stream%fldlist_model(nf)) .eq. vname) then
           dataptr2d_src(2,:) = dataptr1d(:)
        else if (per_stream%stream_pio_iodesc_set) then
-          ! Regrid the field_stream read in to the model mesh
+          ! Get destination field
           call dshr_fldbun_getfieldN(fldbun_data, nf, field_dst, rc=rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
+
+          ! Fill destination field with constant value
+          call ESMF_FieldGet(field_dst, typekind=typekind, rc=rc)
+          if (chkerr(rc,__LINE__,u_FILE_u)) return
+          if (typekind == ESMF_TYPEKIND_R8) then
+             call ESMF_FieldFill(field_dst, dataFillScheme="const", const1=9.99e20_ESMF_KIND_R8, rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+          end if 
+
+          ! Regrid the field_stream read in to the model mesh
           call ESMF_FieldRegrid(per_stream%field_stream, field_dst, routehandle=per_stream%routehandle, &
-               termorderflag=ESMF_TERMORDER_SRCSEQ, checkflag=.false., zeroregion=ESMF_REGION_TOTAL, rc=rc)
+               termorderflag=ESMF_TERMORDER_SRCSEQ, checkflag=.false., zeroregion=ESMF_REGION_SELECT, rc=rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
        else
           call dshr_fldbun_getfieldN(fldbun_data, nf, field_dst, rc=rc)

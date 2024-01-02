@@ -133,6 +133,7 @@ module dshr_stream_mod
      type(shr_stream_data_variable), allocatable :: varlist(:)  ! stream variable names (on file and in model)
      integer           :: src_mask_val = 0                      ! mask value for src mesh
      integer           :: dst_mask_val = 0                      ! mask value for dst mesh
+     character(CS)     :: extrapAlgo   = 'nearest_stod'         ! type of extrapolation - default is nearest_stod
   end type shr_stream_streamType
 
   !----- parameters -----
@@ -447,7 +448,8 @@ contains
        stream_yearFirst, stream_yearLast, stream_yearAlign, &
        stream_offset, stream_taxmode, stream_tintalgo, stream_dtlimit, &
        stream_fldlistFile, stream_fldListModel, stream_fileNames, &
-       logunit, compname, stream_src_mask_val, stream_dst_mask_val)
+       logunit, compname, stream_src_mask_val, stream_dst_mask_val, &
+       stream_extrapAlgo)
 
     ! --------------------------------------------------------
     ! set values of stream datatype independent of a reading in a stream text file
@@ -476,6 +478,7 @@ contains
     character(len=*)            ,intent(in)              :: compname               ! component name (e.g. ATM, OCN...)
     integer                     ,optional, intent(in)    :: stream_src_mask_val    ! source mask value
     integer                     ,optional, intent(in)    :: stream_dst_mask_val    ! destination mask value
+    character(*)                ,optional, intent(in)    :: stream_extrapAlgo      ! extrapolation method
 
     ! local variables
     integer                :: n
@@ -546,6 +549,9 @@ contains
     ! Set source and destination mask
     if (present(stream_src_mask_val)) streamdat(1)%src_mask_val = stream_src_mask_val
     if (present(stream_dst_mask_val)) streamdat(1)%dst_mask_val = stream_dst_mask_val
+
+    ! Set extrapolation method
+    if (present(stream_extrapAlgo)) streamdat(1)%extrapAlgo = trim(stream_extrapAlgo)
 
     ! Initialize flag that stream has been set
     streamdat(1)%init = .true.
@@ -735,6 +741,10 @@ contains
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       call ESMF_ConfigGetAttribute(CF,value=streamdat(i)%dst_mask_val,label="stream_dst_mask"//mystrm//':', default=0, rc=rc)
+      if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
+      ! Get extrapolation method
+      call ESMF_ConfigGetAttribute(CF,value=streamdat(i)%extrapAlgo, label="stream_extrapAlgo"//mystrm//':', default="nearest_stod", rc=rc)
       if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
       ! Error check
