@@ -390,7 +390,7 @@ contains
     !----------------------------------------------------------
 
     ! convert J/m^2 to W/m^2
-    if (lwdnmax > 1.0_r8) then
+    if (lwdnmax < 1.0e4_r8) then
        if (mainproc) write(logunit,*) trim(subname),' flux related variables are already in W/m^2 unit!'
     else
        if (associated(Faxa_lwdn))  Faxa_lwdn(:)  = Faxa_lwdn(:)/3600.0_r8
