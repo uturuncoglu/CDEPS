@@ -69,7 +69,7 @@ module datm_datamode_era5_mod
 
   real(r8) :: t2max   ! units detector
   real(r8) :: td2max  ! units detector
-  real(r8) :: lwdnmax ! units detector
+  real(r8) :: lwmax ! units detector
   real(r8) :: precmax ! units detector
 
   real(r8) , parameter :: tKFrz    = SHR_CONST_TKFRZ
@@ -293,14 +293,22 @@ contains
           if (mainproc) write(logunit,*) trim(subname),' td2max = ',td2max
        end if
 
-       ! determine lwdnmax
+       ! determine lwmax / lwmax
        if (associated(Faxa_lwdn)) then
           rtmp(1) = maxval(Faxa_lwdn(:))
           call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
-          lwdnmax = rtmp(2)
-          if (mainproc) write(logunit,*) trim(subname),' lwdnmax = ',lwdnmax
+          lwmax = rtmp(2)
+          if (mainproc) write(logunit,*) trim(subname),' lwmax = ',lwmax
        else
-          lwdnmax = 0.0_r8
+          ! try with other variable since Faxa_lwdn is not available
+          if (associated(Faxa_lwnet)) then
+            rtmp(1) = maxval(Faxa_lwnet(:))
+            call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
+            lwmax = rtmp(2)
+            if (mainproc) write(logunit,*) trim(subname),' lwmax = ',lwmax
+          else
+            lwmax = 0.0_r8
+          end if
        end if
 
        ! determine precmax
@@ -308,9 +316,17 @@ contains
           rtmp(1) = maxval(Faxa_rain(:))
           call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
           precmax = rtmp(2)
-          if (mainproc) write(logunit,*) trim(subname),' lwdnmax = ',lwdnmax
+          if (mainproc) write(logunit,*) trim(subname),' precmax = ', precmax
        else
-          precmax = 0.0_r8
+          ! try with other variable since Faxa_rain is not available
+          if (associated(Faxa_rainl)) then
+            rtmp(1) = maxval(Faxa_rainl(:))
+            call ESMF_VMAllReduce(vm, rtmp, rtmp(2:), 1, ESMF_REDUCE_MAX, rc=rc)
+            precmax = rtmp(2)
+            if (mainproc) write(logunit,*) trim(subname),' precmax = ', precmax
+          else
+            precmax = 0.0_r8
+          end if
        end if
 
        ! reset first_time
@@ -390,7 +406,7 @@ contains
     !----------------------------------------------------------
 
     ! convert J/m^2 to W/m^2
-    if (lwdnmax < 1.0e4_r8) then
+    if (lwmax < 1.0e4_r8) then
        if (mainproc) write(logunit,*) trim(subname),' flux related variables are already in W/m^2 unit!'
     else
        if (associated(Faxa_lwdn))  Faxa_lwdn(:)  = Faxa_lwdn(:)/3600.0_r8
