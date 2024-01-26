@@ -665,6 +665,7 @@ contains
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('GFS_HAFS')
           call datm_datamode_gfs_hafs_init_pointers(exportState, sdat, rc)
+          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('SIMPLE')
           call datm_datamode_simple_init_pointers(exportState, sdat, rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -787,11 +788,9 @@ contains
        case('CFSR')
           call datm_datamode_cfsr_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
-          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('GFS')
           call datm_datamode_gfs_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
-          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('GFS_HAFS')
           call datm_datamode_gfs_hafs_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
