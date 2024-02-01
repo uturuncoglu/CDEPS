@@ -205,9 +205,9 @@ contains
        write(logunit,F00)' datamode       = ',trim(datamode)
        write(logunit,F00)' model_meshfile = ',trim(model_meshfile)
        write(logunit,F00)' model_maskfile = ',trim(model_maskfile)
-       write(logunit,F01)' nx_global = ',nx_global
-       write(logunit,F01)' ny_global = ',ny_global
-       write(logunit,F00)' restfilm = ',trim(restfilm)
+       write(logunit,F01)' nx_global      = ',nx_global
+       write(logunit,F01)' ny_global      = ',ny_global
+       write(logunit,F00)' restfilm       = ',trim(restfilm)
        write(logunit,F02)' skip_restart_read = ',skip_restart_read
        write(logunit,F02)' export_all = ', export_all
        bcasttmp = 0
@@ -229,8 +229,9 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call ESMF_VMBroadcast(vm, restfilm, CL, main_task, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    call ESMF_VMBroadcast(vm, bcasttmp, 3, main_task, rc=rc)
+    call ESMF_VMBroadcast(vm, bcasttmp, 4, main_task, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
     nx_global = bcasttmp(1)
     ny_global = bcasttmp(2)
     skip_restart_read = (bcasttmp(3) == 1)
