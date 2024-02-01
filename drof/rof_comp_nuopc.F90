@@ -231,8 +231,9 @@ contains
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
     call ESMF_VMBroadcast(vm, restfilm, CL, main_task, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-    call ESMF_VMBroadcast(vm, bcasttmp, 3, main_task, rc=rc)
+    call ESMF_VMBroadcast(vm, bcasttmp, 4, main_task, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
+
     nx_global = bcasttmp(1)
     ny_global = bcasttmp(2)
     skip_restart_read = (bcasttmp(3) == 1)

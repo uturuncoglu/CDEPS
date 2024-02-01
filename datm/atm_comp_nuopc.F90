@@ -100,6 +100,12 @@ module cdeps_datm_comp
   use datm_datamode_simple_mod  , only : datm_datamode_simple_restart_write
   use datm_datamode_simple_mod  , only : datm_datamode_simple_restart_read
 
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_advertise
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_init_pointers
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_advance
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_restart_write
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_restart_read
+
   implicit none
   private ! except
 
@@ -311,6 +317,7 @@ contains
        if(skip_restart_read) bcasttmp(9) = 1
        if(export_all)        bcasttmp(10) = 1
     end if
+
     call ESMF_GridCompGet(gcomp, vm=vm, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
@@ -665,7 +672,6 @@ contains
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('GFS_HAFS')
           call datm_datamode_gfs_hafs_init_pointers(exportState, sdat, rc)
-          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('SIMPLE')
           call datm_datamode_simple_init_pointers(exportState, sdat, rc)
           if (ChkErr(rc,__LINE__,u_FILE_u)) return
@@ -756,7 +762,6 @@ contains
     case('GFS_HAFS')
        call datm_datamode_gfs_hafs_advance(exportstate, mainproc, logunit, mpicom, target_ymd, &
             target_tod, sdat%model_calendar, rc)
-       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     case('SIMPLE')
        call datm_datamode_simple_advance(target_ymd, target_tod, target_mon, &
             sdat%model_calendar, rc)

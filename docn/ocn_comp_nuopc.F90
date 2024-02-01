@@ -251,6 +251,7 @@ contains
        if(skip_restart_read) bcasttmp(3) = 1
        if(export_all) bcasttmp(4) = 1
        rtmp(1) = sst_constant_value
+       if(export_all) bcasttmp(4) = 1
     endif
 
     ! Broadcast namelist input
@@ -270,7 +271,6 @@ contains
 
     call ESMF_VMBroadcast(vm, bcasttmp, 4, main_task, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
-
     call ESMF_VMBroadcast(vm, rtmp, 1, main_task, rc=rc)
     if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
