@@ -93,6 +93,12 @@ module cdeps_datm_comp
   use datm_datamode_gfs_hafs_mod    , only : datm_datamode_gfs_hafs_advance
   use datm_datamode_gfs_hafs_mod    , only : datm_datamode_gfs_hafs_restart_write
   use datm_datamode_gfs_hafs_mod    , only : datm_datamode_gfs_hafs_restart_read
+  
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_advertise
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_init_pointers
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_advance
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_restart_write
+  use datm_datamode_simple_mod  , only : datm_datamode_simple_restart_read
 
   use datm_datamode_simple_mod  , only : datm_datamode_simple_advertise
   use datm_datamode_simple_mod  , only : datm_datamode_simple_init_pointers
@@ -744,6 +750,7 @@ contains
     case('GEFS')
        call datm_datamode_gefs_advance(exportstate, mainproc, logunit, mpicom, target_ymd, &
             target_tod, sdat%model_calendar, rc)
+       if (ChkErr(rc,__LINE__,u_FILE_u)) return
     case('CFSR')
        call datm_datamode_cfsr_advance(exportstate, mainproc, logunit, mpicom, target_ymd, &
             target_tod, sdat%model_calendar, rc)
@@ -786,11 +793,9 @@ contains
        case('CFSR')
           call datm_datamode_cfsr_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
-          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('GFS')
           call datm_datamode_gfs_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
-          if (ChkErr(rc,__LINE__,u_FILE_u)) return
        case('GFS_HAFS')
           call datm_datamode_gfs_hafs_restart_write(case_name, inst_suffix, target_ymd, target_tod, &
                logunit, my_task, sdat)
