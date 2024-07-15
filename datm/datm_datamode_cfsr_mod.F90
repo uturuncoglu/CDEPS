@@ -181,8 +181,8 @@ contains
     logical  :: first_time = .true.
     integer  :: n                   ! indices
     integer  :: lsize               ! size of attr vect
-    real(r8) :: rtmp
-    real(r8) :: tbot, pbot
+    real(r8) :: rtmp(2)
+    type(ESMF_VM) :: vm    
     character(len=*), parameter :: subname='(datm_datamode_cfsr_advance): '
     !-------------------------------------------------------------------------------
 
