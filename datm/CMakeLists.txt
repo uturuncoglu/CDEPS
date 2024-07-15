@@ -11,6 +11,7 @@ set(SRCFILES atm_comp_nuopc.F90
              datm_datamode_era5_mod.F90
              datm_datamode_simple_mod.F90)
 
+
 foreach(FILE ${SRCFILES})
   if(EXISTS "${CASEROOT}/SourceMods/src.datm/${FILE}")
     list(REMOVE_ITEM SRCFILES ${FILE})

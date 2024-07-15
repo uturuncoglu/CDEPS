@@ -28,6 +28,7 @@ if(BLD_STANDALONE)
   target_include_directories (streams PRIVATE ${CMAKE_BINARY_DIR}/share)
 endif()
 
+target_include_directories (streams PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/../fox/include)
 target_include_directories (streams PRIVATE ${ESMF_F90COMPILEPATHS})
 target_include_directories (streams PRIVATE ${PIO_Fortran_INCLUDE_DIR})
 
