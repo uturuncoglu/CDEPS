@@ -24,6 +24,7 @@ module datm_datamode_era5_mod
 
   ! export state data
   real(r8), pointer :: Sa_z(:)              => null()
+  real(r8), pointer :: Sa_z2(:)              => null()
   real(r8), pointer :: Sa_u10m(:)           => null()
   real(r8), pointer :: Sa_v10m(:)           => null()
   real(r8), pointer :: Sa_wspd10m(:)        => null()
