@@ -1,9 +1,9 @@
 module dshr_dfield_mod
 
   use ESMF             , only : ESMF_State, ESMF_FieldBundle, ESMF_MAXSTR, ESMF_SUCCESS
-  use ESMF             , only : ESMF_FieldBundleGet, ESMF_ITEMORDER_ADDORDER, ESMF_Field
+  use ESMF             , only : ESMF_FieldBundleGet, ESMF_ITEMORDER_ADDORDER, ESMF_Field, ESMF_FieldGet
   use shr_kind_mod     , only : r8=>shr_kind_r8, cs=>shr_kind_cs, cl=>shr_kind_cl, cxx=>shr_kind_cxx
-  use shr_sys_mod      , only : shr_sys_abort
+  use shr_log_mod      , only : shr_log_error
   use dshr_strdata_mod , only : shr_strdata_type, shr_strdata_get_stream_count, shr_strdata_get_stream_fieldbundle
   use dshr_methods_mod , only : dshr_state_getfldptr, dshr_fldbun_getfieldn, dshr_field_getfldptr, dshr_fldbun_getFldPtr
   use dshr_methods_mod , only : chkerr
@@ -77,7 +77,8 @@ contains
     allocate(dfield_new, stat=status)
     if (status /= 0) then
        write(msgstr,*)'allocation error ',__LINE__,':',__FILE__
-       call shr_sys_abort(msgstr)
+       call shr_log_error(msgstr, rc=rc)
+       return
     endif
     dfield_new%next => dfields
     dfields => dfield_new
@@ -154,7 +155,8 @@ contains
     allocate(dfield_new, stat=status)
     if (status /= 0) then
        write(msgstr,*)'allocation error ',__LINE__,':',__FILE__
-       call shr_sys_abort(msgstr)
+       call shr_log_error(msgstr, rc=rc)
+       return
     endif
     dfield_new%next => dfields
     dfields => dfield_new
@@ -253,7 +255,8 @@ contains
     endif
     if (status /= 0) then
        write(msgstr,*)'allocation error ',__LINE__,':',__FILE__
-       call shr_sys_abort(msgstr)
+       call shr_log_error(msgstr, rc=rc)
+       return
     endif
 
     ! determine stream fldnames array
@@ -261,12 +264,14 @@ contains
     allocate(dfield_new%stream_indices(nflds), stat=status)
     if (status /= 0) then
        write(msgstr,*)'allocation error ',__LINE__,':',__FILE__
-       call shr_sys_abort(msgstr)
+       call shr_log_error(msgstr, rc=rc)
+       return
     endif
     allocate(dfield_new%fldbun_indices(nflds), stat=status)
     if (status /= 0) then
        write(msgstr,*)'allocation error ',__LINE__,':',__FILE__
-       call shr_sys_abort(msgstr)
+       call shr_log_error(msgstr, rc=rc)
+       return
     endif
     dfield_new%stream_indices(:) = 0
     dfield_new%fldbun_indices(:) = 0
@@ -358,7 +363,8 @@ contains
     endif
     if (status /= 0) then
        write(msgstr,*)'allocation error ',__LINE__,':',__FILE__
-       call shr_sys_abort(msgstr)
+       call shr_log_error(msgstr, rc=rc)
+       return
     endif
 
     ! determine stream fldnames array
@@ -367,12 +373,14 @@ contains
     allocate(dfield_new%stream_indices(nflds), stat=status)
     if (status /= 0) then
        write(msgstr,*)'allocation error ',__LINE__,':',__FILE__
-       call shr_sys_abort(msgstr)
+       call shr_log_error(msgstr, rc=rc)
+       return
     endif
     allocate(dfield_new%fldbun_indices(nflds), stat=status)
     if (status /= 0) then
        write(msgstr,*)'allocation error ',__LINE__,':',__FILE__
-       call shr_sys_abort(msgstr)
+       call shr_log_error(msgstr, rc=rc)
+       return
     endif
 
     ! loop through the field names in strm_flds
@@ -438,9 +446,12 @@ contains
     type(ESMF_field)           :: lfield
     type(dfield_type), pointer :: dfield
     real(r8), pointer          :: data1d(:)
+    real(r8), pointer          :: data2d(:,:)
     integer                    :: nf
     integer                    :: fldbun_index
     integer                    :: stream_index
+    integer                    :: ungriddedUBound_output(1)
+    integer                    :: ungriddedCount
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
@@ -464,13 +475,22 @@ contains
           do nf = 1,size(dfield%stream_indices)
              stream_index = dfield%stream_indices(nf)
              fldbun_index = dfield%fldbun_indices(nf)
-             if(stream_index > 0) then
+             if (stream_index > 0) then
                 fldbun_model = shr_strdata_get_stream_fieldbundle(sdat, stream_index, 'model')
                 call dshr_fldbun_getfieldn(fldbun_model, fldbun_index, lfield, rc=rc)
                 if (chkerr(rc,__LINE__,u_FILE_u)) return
-                call dshr_field_getfldptr(lfield, fldptr1=data1d, rc=rc)
+                call ESMF_FieldGet(lfield, ungriddedUBound=ungriddedUBound_output, rc=rc)
                 if (chkerr(rc,__LINE__,u_FILE_u)) return
-                dfield%state_data2d(nf,:) = data1d(:)
+                ungriddedCount = ungriddedUBound_output(1)
+                if (ungriddedCount > 0) then
+                   call dshr_field_getfldptr(lfield, fldptr2=data2d, rc=rc)
+                   if (chkerr(rc,__LINE__,u_FILE_u)) return
+                   dfield%state_data2d(:,:) = data2d(:,:)
+                else
+                   call dshr_field_getfldptr(lfield, fldptr1=data1d, rc=rc)
+                   if (chkerr(rc,__LINE__,u_FILE_u)) return
+                   dfield%state_data2d(nf,:) = data1d(:)
+                end if
              endif
           end do
        end if

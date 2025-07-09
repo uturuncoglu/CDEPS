@@ -76,6 +76,7 @@ class StreamCDEPS(GenericXML):
         data_list_file,
         user_mods_file,
         available_neon_data=None,
+        available_plumber_data=None
     ):
         """
         Create the stream xml file and append the required stream input data to the input data list file
@@ -168,14 +169,41 @@ class StreamCDEPS(GenericXML):
 
         # write contents of stream file
         for stream_name in stream_names:
-            if stream_name.startswith("NEON."):
-                self.stream_nodes = super(StreamCDEPS,self).get_child("stream_entry", {"name" : "NEON.$NEONSITE"},
-                                                                     err_msg="No stream_entry {} found".format(stream_name))
-
+            # include NEON.$NEONSITE non-precipitation data streams whether use PRISM or NEON precip
+            if stream_name.startswith("NEON.") and ("PRECIP" not in stream_name):
+                self.stream_nodes = super(StreamCDEPS, self).get_child(
+                    "stream_entry",
+                    {"name": "NEON.$NEONSITE"},
+                    err_msg="No stream_entry {} found".format(stream_name),
+                )
+            elif stream_name.startswith("NEON.PRISM_PRECIP"):
+                self.stream_nodes = super(StreamCDEPS, self).get_child(
+                    "stream_entry",
+                    {"name": "NEON.PRISM_PRECIP.$NEONSITE"},
+                    err_msg="No stream_entry {} found".format(stream_name),
+                )
+            elif stream_name.startswith("NEON.NEON_PRECIP"):
+                self.stream_nodes = super(StreamCDEPS, self).get_child(
+                    "stream_entry",
+                    {"name": "NEON.NEON_PRECIP.$NEONSITE"},
+                    err_msg="No stream_entry {} found".format(stream_name),
+                )
+            elif stream_name.startswith("PLUMBER2"):
+                self.stream_nodes = super(StreamCDEPS, self).get_child(
+                    "stream_entry",
+                    {"name": "PLUMBER2.$PLUMBER2SITE"},
+                    err_msg="No stream_entry {} found".format(stream_name),
+                )
             elif stream_name.startswith("CLM_USRDAT."):
-                self.stream_nodes = super(StreamCDEPS,self).get_child("stream_entry", {"name" : "CLM_USRDAT.$CLM_USRDAT_NAME"},
-                                                                     err_msg="No stream_entry {} found".format(stream_name))
-
+                if 'PLUMBER2' in stream_name:
+                    # if PLUMBER2 is in the stream name
+                    # we want to use PLUMBER2.PLUMBER2SITE instead of CLM_USRDAT.PLUMBER2
+                    continue
+                self.stream_nodes = super(StreamCDEPS, self).get_child(
+                    "stream_entry",
+                    {"name": "CLM_USRDAT.$CLM_USRDAT_NAME"},
+                    err_msg="No stream_entry {} found".format(stream_name),
+                )
             elif stream_name:
                 self.stream_nodes = super(StreamCDEPS, self).get_child(
                     "stream_entry",
@@ -214,6 +242,7 @@ class StreamCDEPS(GenericXML):
                 elif node_name == "stream_datafiles":
                     # Get the resolved stream data files
                     stream_vars[node_name] = ""
+                    stream_datafiles_list = [] # to join stream_datafiles if multiple entries are present
                     stream_datafiles = ""
                     for child in self.get_children(root=node):
                         if (
@@ -225,6 +254,13 @@ class StreamCDEPS(GenericXML):
                             for neon in available_neon_data:
                                 stream_datafiles += (
                                     os.path.join(rundir, "inputdata", "atm", neon)
+                                    + "\n"
+                                )
+                        elif available_plumber_data and stream_name.startswith("PLUMBER2"):
+                            rundir = case.get_value("RUNDIR")
+                            for plumber in available_plumber_data:
+                                stream_datafiles += (
+                                    os.path.join(rundir, "inputdata", "atm", plumber)
                                     + "\n"
                                 )
                         else:
@@ -271,6 +307,8 @@ class StreamCDEPS(GenericXML):
                                 stream_datafiles.split("\n"), "file"
                             )
                         # endif
+                        stream_datafiles_list.append(stream_datafiles)
+                    stream_datafiles = "\n".join(stream_datafiles_list)
                 elif node_name in xml_scalar_names:
                     attributes["model_grid"] = case.get_value("GRID")
                     attributes["compset"] = case.get_value("COMPSET")
@@ -298,6 +336,11 @@ class StreamCDEPS(GenericXML):
                         ),
                     )
                     if var_key in valid_values:
+
+                        # # Handle, e.g., 'bilinear' in namelist instead of bilinear (no quotes)
+                        mod_dict[var_key] = re.sub(r"[\"\']", "", mod_dict[var_key])
+
+                        # Check that key is valid
                         expect(
                             mod_dict[var_key] in valid_values[var_key],
                             "{} can only have values of {} for stream {} in file {}".format(

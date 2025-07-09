@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.10)
 include(ExternalProject)
 include(FetchContent)
 
+set(DISABLE_FoX OFF CACHE BOOL "Disable FoX library to process XML files.")
+message("DISABLE_FoX = ${DISABLE_FoX}")
+if(DISABLE_FoX)
+  add_definitions(-DDISABLE_FoX)
+endif()
+
 if (DEFINED CIMEROOT)
   message("Using CIME in ${CIMEROOT} with compiler ${COMPILER}")
   include(${CASEROOT}/Macros.cmake)
@@ -60,37 +66,23 @@ if(BLD_STANDALONE)
 endif()
 if("${COMPILER}" STREQUAL "nag")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -D__NAG__")
-endif()     
+endif()
 add_subdirectory(streams)
 add_subdirectory(dshr)
 
-if(IS_DIRECTORY "${PROJECT_SOURCE_DIR}/fox")
-  message(STATUS "FoX library is already checked out!")
-  message(STATUS "FoX source dir: ${PROJECT_SOURCE_DIR}/fox")
-else()
-  FetchContent_Declare(fox
-    GIT_REPOSITORY https://github.com/ESMCI/fox.git
-    GIT_TAG 4.1.2.1
-    SOURCE_DIR ${PROJECT_SOURCE_DIR}/fox
-    BINARY_DIR ${PROJECT_SOURCE_DIR}
-  )
-  FetchContent_GetProperties(fox)
-  if(NOT fox_POPULATED)
-    FetchContent_Populate(fox)
-    message(STATUS "FoX source dir: ${fox_SOURCE_DIR}")
-    message(STATUS "FoX binary dir: ${fox_BINARY_DIR}")
-  endif()
-endif()
-add_subdirectory(fox)
+if(NOT DISABLE_FoX)
+  add_subdirectory(fox)
 
-foreach(COMP datm dice dlnd docn drof dwav)
-  add_subdirectory("${COMP}")
-endforeach(COMP)
+  target_include_directories(streams PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/fox/include>
+                                            $<INSTALL_INTERFACE:mod>)
+  target_include_directories(dshr PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/fox/include>
+                                         $<INSTALL_INTERFACE:mod>)
+endif()
 
 target_include_directories(dshr PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/streams>
                                        $<INSTALL_INTERFACE:mod>)
 
-foreach(COMP datm dice dlnd docn drof dwav)
+foreach(COMP datm dice dglc dlnd docn drof dwav)
   add_subdirectory("${COMP}")
   if(BLD_STANDALONE)
     target_include_directories(${COMP} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/share>

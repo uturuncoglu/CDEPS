@@ -37,8 +37,6 @@ module dice_datamode_cplhist_mod
   real(r8), pointer :: Si_anidr(:)      => null()
   real(r8), pointer :: Si_anidf(:)      => null()
 
-  character(*) , parameter :: nullstr = 'null'
-  character(*) , parameter :: rpfile  = 'rpointer.ice'
   character(*) , parameter :: u_FILE_u = &
        __FILE__
 
@@ -158,10 +156,11 @@ contains
   end subroutine dice_datamode_cplhist_advance
 
   !===============================================================================
-  subroutine dice_datamode_cplhist_restart_write(case_name, inst_suffix, ymd, tod, &
+  subroutine dice_datamode_cplhist_restart_write(rpfile, case_name, inst_suffix, ymd, tod, &
        logunit, my_task, sdat)
 
     ! input/output variables
+    character(len=*)            , intent(in)    :: rpfile
     character(len=*)            , intent(in)    :: case_name
     character(len=*)            , intent(in)    :: inst_suffix
     integer                     , intent(in)    :: ymd       ! model date
@@ -169,26 +168,34 @@ contains
     integer                     , intent(in)    :: logunit
     integer                     , intent(in)    :: my_task
     type(shr_strdata_type)      , intent(inout) :: sdat
+
+    ! local variables
+    integer :: rc
     !-------------------------------------------------------------------------------
 
     call dshr_restart_write(rpfile, case_name, 'dice', inst_suffix, ymd, tod, &
-         logunit, my_task, sdat)
+         logunit, my_task, sdat, rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   end subroutine dice_datamode_cplhist_restart_write
 
   !===============================================================================
-  subroutine dice_datamode_cplhist_restart_read(rest_filem, inst_suffix, logunit, my_task, mpicom, sdat)
+  subroutine dice_datamode_cplhist_restart_read(rest_filem, rpfile, logunit, my_task, mpicom, sdat)
 
     ! input/output arguments
     character(len=*)            , intent(inout) :: rest_filem
-    character(len=*)            , intent(in)    :: inst_suffix
+    character(len=*)            , intent(inout) :: rpfile
     integer                     , intent(in)    :: logunit
     integer                     , intent(in)    :: my_task
     integer                     , intent(in)    :: mpicom
     type(shr_strdata_type)      , intent(inout) :: sdat
+
+    ! local variables
+    integer :: rc
     !-------------------------------------------------------------------------------
 
-    call dshr_restart_read(rest_filem, rpfile, inst_suffix, nullstr, logunit, my_task, mpicom, sdat)
+    call dshr_restart_read(rest_filem, rpfile, logunit, my_task, mpicom, sdat, rc)
+    if (ChkErr(rc,__LINE__,u_FILE_u)) return
 
   end subroutine dice_datamode_cplhist_restart_read
 
