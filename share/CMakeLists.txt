@@ -1,27 +1,27 @@
 project(CDEPS_share Fortran)
 include(ExternalProject)
-set (GenF90_SRCS shr_infnan_mod.F90
-                 shr_frz_mod.F90
-                 shr_assert_mod.F90)
+set(GenF90_SRCS shr_infnan_mod.F90
+                shr_frz_mod.F90
+                shr_assert_mod.F90)
+set(SRCFILES shr_nl_mod.F90
+             glc_elevclass_mod.F90
+             shr_timer_mod.F90
+             shr_cal_mod.F90
+             shr_kind_mod.F90
+             shr_file_mod.F90
+             shr_sys_mod.F90
+             shr_abort_mod.F90
+             shr_const_mod.F90
+             shr_orb_mod.F90
+             shr_log_mod.F90
+             shr_lnd2rof_tracers_mod.F90
+             shr_strconvert_mod.F90
+             shr_precip_mod.F90
+             shr_string_mod.F90
+             shr_is_restart_fh_mod.F90
+             nuopc_shr_methods.F90)
 
-add_library(cdeps_share  ${GenF90_SRCS}
-                         shr_nl_mod.F90
-                         glc_elevclass_mod.F90
-                         shr_timer_mod.F90
-                         shr_cal_mod.F90
-                         shr_kind_mod.F90
-                         shr_file_mod.F90
-                         shr_sys_mod.F90
-                         shr_abort_mod.F90
-                         shr_const_mod.F90
-                         shr_orb_mod.F90
-                         shr_log_mod.F90
-                         shr_lnd2rof_tracers_mod.F90
-                         shr_strconvert_mod.F90
-                         shr_precip_mod.F90
-                         shr_string_mod.F90
-                         shr_is_restart_fh_mod.F90
-                         nuopc_shr_methods.F90)
+add_library(cdeps_share  ${GenF90_SRCS} ${SRCFILES})
 
 target_include_directories (cdeps_share PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIRS})
 
@@ -64,3 +64,11 @@ foreach (SRC_FILE IN LISTS GenF90_SRCS)
     ${CMAKE_CURRENT_SOURCE_DIR}/${SRC_FILE}.in > ${SRC_FILE}
     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SRC_FILE}.in genf90)
 endforeach ()
+
+if(BLD_STANDALONE)
+  # ESMX requires mod files
+  foreach (SRC ${SRCFILES})
+    string(REGEX REPLACE "[.]F90$" ".mod" MOD ${SRC})
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${MOD}" DESTINATION include)
+  endforeach ()
+endif()
