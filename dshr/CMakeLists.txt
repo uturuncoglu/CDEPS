@@ -25,3 +25,14 @@ target_include_directories (dshr PRIVATE "${PIO_Fortran_INCLUDE_DIR}")
 install(TARGETS dshr
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
+
+if(BLD_STANDALONE)
+  # ESMX requires mod files
+  foreach (SRC ${SRCFILES})
+    string(REGEX REPLACE "[.]F90$" ".mod" MOD ${SRC})
+    if (NOT DEFINED CIMEROOT AND MOD STREQUAL atm_comp_nuopc.mod)
+      set(MOD cdeps_datm_comp.mod)
+    endif()
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/${MOD}" DESTINATION include)
+  endforeach ()
+endif()

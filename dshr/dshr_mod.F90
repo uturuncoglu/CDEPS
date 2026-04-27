@@ -51,6 +51,7 @@ module dshr_mod
 
   public  :: dshr_model_initphase
   public  :: dshr_init
+  public  :: dshr_pio_init
   public  :: dshr_mesh_init
   public  :: dshr_set_runclock
   public  :: dshr_restart_read
